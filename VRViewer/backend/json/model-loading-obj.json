@@ -1,0 +1,15 @@
+{
+  "_comment": "TEST: Caricamento modello OBJ da URL — POST /api/viewer/load (Content-Type: application/json)",
+  "ServiceID": "test-service-001",
+  "SessionToken": "e3be7cc2-3a7e-45e6-9a88-bd364e6de740",
+  "Source": {
+    "UrlSource": {
+      "FileExtension": ".obj",
+      "FileDimension": 125161,
+      "Url": "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/obj/tree.obj"
+    }
+  },
+  "SceneInit": {
+    "BackgroundColor": "2D3A1E"
+  }
+}

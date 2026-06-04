@@ -1,0 +1,19 @@
+services:
+  xrculture-viewer:
+    image: xrculture-viewer:latest
+    container_name: xrculture-viewer
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    ports:
+      - "5200:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - XML_DIR=/xrculture/viewer/xml
+    volumes:
+      - xrculture_data:/xrculture/viewer
+    restart: unless-stopped
+
+volumes:
+  xrculture_data:

@@ -1,0 +1,7 @@
+{
+  "_comment": "Esempio di risposta JSON da POST /api/viewer/load",
+  "Status": 200,
+  "SessionToken": "e3be7cc2-3a7e-45e6-9a88-bd364e6de740",
+  "Message": "Ready",
+  "Endpoint": "http://localhost:5200?bg=FFFFFF&path=https%3A%2F%2Fraw.githubusercontent.com%2FKhronosGroup%2FglTF-Sample-Models%2Fmaster%2F2.0%2FDuck%2FglTF-Binary%2FDuck.glb"
+}

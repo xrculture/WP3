@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ModelLoadingRequest>
+    <ServiceID>test-service-001</ServiceID>
+    <SessionToken>e3be7cc2-3a7e-45e6-9a88-bd364e6de740</SessionToken>
+    <Source>
+        <UrlSource>
+            <FileExtension>.obj</FileExtension>
+            <FileDimension>125161</FileDimension>
+            <Url>https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/obj/tree.obj</Url>
+        </UrlSource>
+    </Source>
+    <SceneInit>
+        <Zoom default="True"/>
+        <Pan default="True"/>
+        <BackgroundColor default="False">2D3A1E</BackgroundColor>
+    </SceneInit>
+    <oEmbed>False</oEmbed>
+</ModelLoadingRequest>

@@ -1,0 +1,28 @@
+{
+  "name": "xrculture-server",
+  "version": "1.0.0",
+  "description": "XR-Culture backend - hosts web component and XML APIs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npx rimraf ./dist && npx tsc",
+    "start": "node dist/index.js",
+    "dev": "npx ts-node src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.0",
+    "@types/xml2js": "^0.4.14",
+    "typescript": "^6.0.3"
+  }
+}

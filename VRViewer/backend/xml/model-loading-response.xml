@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ModelLoadingResponse>
+    <Status>200</Status>
+    <SessionToken>e3be7cc2-3a7e-45e6-9a88-bd364e6de740</SessionToken>
+    <Message>Model loaded successfully</Message>
+    <LoadedContent>873796</LoadedContent>
+    <Metadata>
+        <Title>Duck (glTF Sample Model)</Title>
+        <Format>.glb</Format>
+        <FaceCount>4212</FaceCount>
+        <VertexCount>2399</VertexCount>
+        <TextureCount>1</TextureCount>
+    </Metadata>
+    <Endpoint>http://localhost:5200?path=https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb</Endpoint>
+</ModelLoadingResponse>

@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XR-Culture Viewer — RegistrationRequest
+  Provider : Ubisive
+  Protocol : 1.0
+  Usage    : POST this document to the XRCultureHub registration endpoint.
+             Replace %SESSION_TOKEN% with the token issued by the Hub.
+             Replace the EndPoint host with the actual production hostname.
+-->
+<Protocol version="1.0">
+    <RegistrationRequest>
+
+        <ProviderID>UNIVPM</ProviderID>
+        <SessionToken>%SESSION_TOKEN%</SessionToken>
+        <ServiceType>Viewer</ServiceType>
+
+        <!-- Model-loading API endpoint (POST /api/viewer/load) -->
+        <EndPoint>https://%HOST%:5200/api/viewer/load</EndPoint>
+        <ContactEmail>info@univpm.it</ContactEmail>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!--  BACK-END                                                       -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <BackEnd>
+
+            <Access-Control-Allow-Origin>*</Access-Control-Allow-Origin>
+
+            <SupportedOptions>
+
+                <Architecture value="REST">
+                    <Access-Control-Allow-Method>GET</Access-Control-Allow-Method>
+                    <Access-Control-Allow-Method>POST</Access-Control-Allow-Method>
+                </Architecture>
+
+                <ProgressiveLoading value="True" />
+                <!-- Three.js loaders report XHR progress via onProgress callback -->
+
+                <TimeMachine value="False" />
+
+                <FileFormats>
+                    <!-- native="True" means the format is rendered without prior conversion -->
+                    <Format extension=".glb"  mimetype="application/octet-stream" native="True" />
+                    <Format extension=".gltf" mimetype="application/json"         native="True" />
+                    <Format extension=".fbx"  mimetype="application/octet-stream" native="True" />
+                    <Format extension=".obj"  mimetype="text/plain"               native="True" />
+                    <!-- Data URLs (data:model/gltf-binary;base64,...) are also accepted as path -->
+                </FileFormats>
+
+                <!-- No cloud storage or database back-end in this implementation -->
+
+                <!-- oEmbed protocol is NOT supported; the oEmbed field in requests is ignored -->
+
+                <!-- Authentication: session token is forwarded but not cryptographically verified -->
+
+            </SupportedOptions>
+
+        </BackEnd>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!--  FRONT-END                                                      -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <FrontEnd>
+
+            <GUI>
+                <ViewType value="True" />
+                <!-- Delivered as a self-contained HTML Custom Element <app-vr> (Shadow DOM) -->
+                <Languages>
+                    <Language default="True">en-US</Language>
+                </Languages>
+                <MobileOptimization value="True" />
+                <!-- Responsive layout via Tailwind CSS; touch-based OrbitControls via Three.js -->
+                <MaxPolygonCount>2000000</MaxPolygonCount>
+                <MaxTextureSize>4096</MaxTextureSize>
+            </GUI>
+
+            <SupportedOptions>
+
+                <Scene>
+                    <Autoload value="True" />
+                    <!-- Model is loaded immediately on page open using the ?path= query parameter -->
+
+                    <Zoom value="True" />
+                    <!-- Query param: ?zoom=<float>  |  Attribute: zoom="<float>"               -->
+                    <!-- Sets the initial camera Z-distance from the origin                     -->
+
+                    <Pan value="True" />
+                    <!-- Query param: ?pan=<x,y,z>  |  Attribute: pan="<x,y,z>"                -->
+                    <!-- Sets the OrbitControls target (camera look-at point)                   -->
+
+                    <BackgroundColor value="ALL" default="000000" />
+                    <!-- Query param: ?bg=<RRGGBB hex, no #>  |  Attribute: background-color="" -->
+                    <!-- Applied to the Canvas background and the host DOM container            -->
+
+                    <!-- <View> is NOT supported — no preset camera orientations (Top/Front/…)  -->
+
+                    <Lights value="True" />
+                    <!-- Query param: ?lights=<float 0–2>  |  Attribute: light-intensity=""     -->
+                    <!-- Controls the intensity of ambient and directional lights               -->
+
+                    <VR value="True" />
+                    <!-- Immersive VR via WebXR (immersive-vr session)                         -->
+                    <!-- Hand tracking and controller-based model manipulation supported        -->
+
+                    <AR value="True" />
+                    <!-- Immersive AR via WebXR (immersive-ar session)                         -->
+                    <!-- Extension beyond the base protocol — supported in this implementation  -->
+                </Scene>
+
+                <!-- MultipleModels : NOT supported (single model per session)  -->
+                <!-- ElementSelection: NOT supported (no IFC/BIM element picking) -->
+                <!-- Elements        : NOT supported (no IFC type hierarchy)    -->
+                <!-- Measuring       : NOT supported                            -->
+                <!-- Attachments     : NOT supported                            -->
+                <!-- CustomBBox      : NOT supported                            -->
+
+                <!-- ─── Non-standard extension ──────────────────────────── -->
+                <POI value="True" />
+                <!-- Points of Interest embedded in glTF asset.extras.pois   -->
+                <!-- Schema: [{ "title": "…", "description": "…",            -->
+                <!--            "position": [x, y, z] }]                     -->
+                <!-- Rendered as interactive 3D spheres with billboard panels -->
+
+            </SupportedOptions>
+
+        </FrontEnd>
+
+        <Timestamp>2026-05-15T00:00:00Z</Timestamp>
+
+    </RegistrationRequest>
+</Protocol>

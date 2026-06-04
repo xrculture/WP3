@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ModelLoadingRequest>
+    <ServiceID>test-service-001</ServiceID>
+    <SessionToken>e3be7cc2-3a7e-45e6-9a88-bd364e6de740</SessionToken>
+    <Source>
+        <UrlSource>
+            <FileName>Duck</FileName>
+            <FileExtension>.glb</FileExtension>
+            <FileDimension>873796</FileDimension>
+            <Url>https://github.com/KhronosGroup/glTF-Sample-Models/raw/refs/heads/main/2.0/Duck/glTF-Binary/Duck.glb</Url>
+        </UrlSource>
+    </Source>
+    <SceneInit>
+        <Zoom default="False"/>
+        <Pan default="False"/>
+        <BackgroundColor default="False">FFFFFF</BackgroundColor>
+    </SceneInit>
+    <oEmbed>False</oEmbed>
+</ModelLoadingRequest>
