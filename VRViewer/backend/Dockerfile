@@ -21,6 +21,9 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
+# openssl is needed by the entrypoint to generate the self-signed TLS cert
+RUN apk add --no-cache openssl
+
 # Install only production dependencies
 COPY backend/package*.json ./
 RUN npm ci --omit=dev
@@ -44,4 +47,7 @@ ENV NODE_ENV=production
 
 EXPOSE 8080
 
-CMD ["node", "dist/index.js"]
+COPY backend/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
+CMD ["./docker-entrypoint.sh"]

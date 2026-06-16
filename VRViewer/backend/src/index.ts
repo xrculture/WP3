@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
+import https from "https";
 import { randomUUID } from "crypto";
 import { parseStringPromise, Builder } from "xml2js";
 
@@ -238,7 +239,18 @@ app.get("*splat", (req: Request, res: Response) => {
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 
-app.listen(port, () => {
-    console.log(`XR-Culture server running on http://localhost:${port}`);
-    console.log(`  Static files: ${publicDir}`);
-});
+const keyPath  = process.env.SSL_KEY  ?? "/app/key.pem";
+const certPath = process.env.SSL_CERT ?? "/app/cert.pem";
+
+if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    https.createServer({ key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }, app)
+        .listen(port, () => {
+            console.log(`XR-Culture server running on https://localhost:${port}`);
+            console.log(`  Static files: ${publicDir}`);
+        });
+} else {
+    app.listen(port, () => {
+        console.log(`XR-Culture server running on http://localhost:${port}`);
+        console.log(`  Static files: ${publicDir}`);
+    });
+}
