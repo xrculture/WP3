@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { Group, Object3D, Quaternion, Vector3, type Object3DEventMap } from "three";
 
+
 import { useFrame } from "@react-three/fiber";
 import { useXR, type XRControllerState } from "@react-three/xr";
 
@@ -10,7 +11,7 @@ import type { XRHandState } from "@pmndrs/xr";
 import { useControllers, useHands } from "../hooks";
 import type { ModelMetadata } from "../hooks/useModel";
 
-import { getTransformOffsetsFromXR, performRaycast, evaluatePose, updateArrowHelper, xrMatrixToMatrix4, xrOrientationToQuaternion, xrPositionToVector3 } from "../utils";
+import { getTransformOffsetsFromXR, performRaycast, evaluatePose, updateArrowHelper, setArrowHelperHighlight, raycastPoi, xrMatrixToMatrix4, xrOrientationToQuaternion, xrPositionToVector3 } from "../utils";
 
 import Poi from "./Poi";
 
@@ -139,6 +140,8 @@ export default function Model({ model, metadata }: Props) {
 
     const rootRef = useRef<Object3D>(null);
     const meshRef = useRef<Object3D>(null);
+    const poisGroupRef = useRef<Group>(null);
+    const hoveredPoiIndicesRef = useRef<Set<number>>(new Set());
 
     const objectPositionRef = useRef(new Vector3());
     const objectRotationRef = useRef(new Quaternion());
@@ -160,6 +163,15 @@ export default function Model({ model, metadata }: Props) {
     const statesDistanceRef = useRef(0);
     const activeStatesTransformsRef = useRef<XRStateTransform[]>([]);
 
+    // Previous-frame pressed/pinch state per input, used to detect the rising edge of a
+    // grab so the model raycast only fires on the frame the trigger is first pressed.
+    const prevInputPressedRef = useRef({
+        leftController: false,
+        rightController: false,
+        leftHand: false,
+        rightHand: false,
+    });
+
     useEffect(() => {
         objectPositionRef.current = new Vector3();
         objectRotationRef.current = new Quaternion();
@@ -167,6 +179,13 @@ export default function Model({ model, metadata }: Props) {
         lockPositionOffsetRef.current = lockRotationOffsetRef.current = null;
 
         activeStatesTransformsRef.current = [];
+
+        prevInputPressedRef.current = {
+            leftController: false,
+            rightController: false,
+            leftHand: false,
+            rightHand: false,
+        };
 
         if (session) {
             rootRef.current?.position.set(0, 0, -5);
@@ -192,41 +211,53 @@ export default function Model({ model, metadata }: Props) {
         updateArrowHelper(leftHandArrowHelperRef.current, leftHand, originReferenceSpace, frame);
         updateArrowHelper(rightHandArrowHelperRef.current, rightHand, originReferenceSpace, frame);
 
+        // POI hover detection — runs every frame regardless of trigger/pinch state
+        hoveredPoiIndicesRef.current.clear();
+        const inputsForHover = [
+            { input: leftController,  arrowRef: leftControllerArrowHelperRef },
+            { input: rightController, arrowRef: rightControllerArrowHelperRef },
+            { input: leftHand,        arrowRef: leftHandArrowHelperRef },
+            { input: rightHand,       arrowRef: rightHandArrowHelperRef },
+        ] as const;
+
+        for (const { input, arrowRef } of inputsForHover) {
+            const transform = input ? evaluatePose(input, originReferenceSpace, frame)?.transform : null;
+            const hit = poisGroupRef.current
+                ? raycastPoi(raycaster, transform, poisGroupRef.current)
+                : null;
+            setArrowHelperHighlight(arrowRef.current, hit !== null);
+            if (hit) {
+                hoveredPoiIndicesRef.current.add(hit.index);
+                // Trim the ray so it ends on the POI surface; updateArrowHelper
+                // restores the full length once the pointer moves off the POI.
+                arrowRef.current?.setLength(hit.distance, 0, 0);
+            }
+        }
+
         const leftControllerTriggerIsPressed = isTriggerPressed(leftController);
         const rightControllerTriggerIsPressed = isTriggerPressed(rightController);
 
         const leftHandIsPinching = isPinching(leftHand, originReferenceSpace, frame);
         const rightHandIsPinching = isPinching(rightHand, originReferenceSpace, frame);
 
+        // Rising edge of each grab: pressed this frame, not pressed last frame. The model
+        // raycast only runs on this edge, so missing the model (grabbing empty space) does
+        // not keep raycasting every frame for the whole duration of the hold.
+        const prevPressed = prevInputPressedRef.current;
+        const leftControllerJustPressed = leftControllerTriggerIsPressed && !prevPressed.leftController;
+        const rightControllerJustPressed = rightControllerTriggerIsPressed && !prevPressed.rightController;
+        const leftHandJustPressed = leftHandIsPinching && !prevPressed.leftHand;
+        const rightHandJustPressed = rightHandIsPinching && !prevPressed.rightHand;
+        prevPressed.leftController = leftControllerTriggerIsPressed;
+        prevPressed.rightController = rightControllerTriggerIsPressed;
+        prevPressed.leftHand = leftHandIsPinching;
+        prevPressed.rightHand = rightHandIsPinching;
+
         leftControllerRaycastResultRef.current = null;
         rightControllerRaycastResultRef.current = null;
 
         leftHandRaycastResultRef.current = null;
         rightHandRaycastResultRef.current = null;
-
-        if (leftControllerTriggerIsPressed) {
-            leftControllerTransformRef.current = evaluatePose(leftController, originReferenceSpace, frame)?.transform;
-
-            leftControllerRaycastResultRef.current = performRaycast(raycaster, leftControllerTransformRef.current, rootRef.current);
-        }
-
-        if (rightControllerTriggerIsPressed) {
-            rightControllerTransformRef.current = evaluatePose(rightController, originReferenceSpace, frame)?.transform;
-
-            rightControllerRaycastResultRef.current = performRaycast(raycaster, rightControllerTransformRef.current, rootRef.current);
-        }
-
-        if (leftHandIsPinching) {
-            leftHandTransformRef.current = evaluatePose(leftHand, originReferenceSpace, frame)?.transform;
-
-            leftHandRaycastResultRef.current = performRaycast(raycaster, leftHandTransformRef.current, rootRef.current);
-        }
-
-        if (rightHandIsPinching) {
-            rightHandTransformRef.current = evaluatePose(rightHand, originReferenceSpace, frame)?.transform;
-
-            rightHandRaycastResultRef.current = performRaycast(raycaster, rightHandTransformRef.current, rootRef.current);
-        }
 
         let reset = false;
 
@@ -236,6 +267,42 @@ export default function Model({ model, metadata }: Props) {
         const existingLeftHand = activeStatesTransformsRef.current.find(i => i.state === leftHand);
         const existingRightHand = activeStatesTransformsRef.current.find(i => i.state === rightHand);
 
+        // Only raycast the full model on the frame a grab first engages. While a grab is
+        // held, refresh the (cheap) pose transform but skip the expensive per-triangle
+        // raycast — the downstream `else if (existing…)` branches keep the grab going with
+        // a null raycast result.
+        if (leftControllerTriggerIsPressed) {
+            leftControllerTransformRef.current = evaluatePose(leftController, originReferenceSpace, frame)?.transform;
+
+            if (leftControllerJustPressed) {
+                leftControllerRaycastResultRef.current = performRaycast(raycaster, leftControllerTransformRef.current, rootRef.current);
+            }
+        }
+
+        if (rightControllerTriggerIsPressed) {
+            rightControllerTransformRef.current = evaluatePose(rightController, originReferenceSpace, frame)?.transform;
+
+            if (rightControllerJustPressed) {
+                rightControllerRaycastResultRef.current = performRaycast(raycaster, rightControllerTransformRef.current, rootRef.current);
+            }
+        }
+
+        if (leftHandIsPinching) {
+            leftHandTransformRef.current = evaluatePose(leftHand, originReferenceSpace, frame)?.transform;
+
+            if (leftHandJustPressed) {
+                leftHandRaycastResultRef.current = performRaycast(raycaster, leftHandTransformRef.current, rootRef.current);
+            }
+        }
+
+        if (rightHandIsPinching) {
+            rightHandTransformRef.current = evaluatePose(rightHand, originReferenceSpace, frame)?.transform;
+
+            if (rightHandJustPressed) {
+                rightHandRaycastResultRef.current = performRaycast(raycaster, rightHandTransformRef.current, rootRef.current);
+            }
+        }
+
         if (leftControllerTriggerIsPressed) {
             if (leftControllerRaycastResultRef.current) {
                 if (!existingLeftController) activeStatesTransformsRef.current.push({ state: leftController, transform: leftControllerTransformRef.current, hitPoint: leftControllerRaycastResultRef.current.point.clone() });
@@ -243,13 +310,6 @@ export default function Model({ model, metadata }: Props) {
             } else if (existingLeftController) {
                 existingLeftController.transform = leftControllerTransformRef.current;
             }
-        } else if (existingLeftController) {
-            const currentInputSource = activeStatesTransformsRef.current[0];
-
-            const index = activeStatesTransformsRef.current.indexOf(existingLeftController);
-            activeStatesTransformsRef.current.splice(index, 1);
-
-            reset = currentInputSource.state === leftController;
         }
 
         if (rightControllerTriggerIsPressed) {
@@ -259,13 +319,6 @@ export default function Model({ model, metadata }: Props) {
             } else if (existingRightController) {
                 existingRightController.transform = rightControllerTransformRef.current;
             }
-        } else if (existingRightController) {
-            const currentInputSource = activeStatesTransformsRef.current[0];
-
-            const index = activeStatesTransformsRef.current.indexOf(existingRightController);
-            activeStatesTransformsRef.current.splice(index, 1);
-
-            reset = currentInputSource.state === rightController;
         }
 
         if (leftHandIsPinching) {
@@ -275,13 +328,6 @@ export default function Model({ model, metadata }: Props) {
             } else if (existingLeftHand) {
                 existingLeftHand.transform = leftHandTransformRef.current;
             }
-        } else if (existingLeftHand) {
-            const currentInputSource = activeStatesTransformsRef.current[0];
-
-            const index = activeStatesTransformsRef.current.indexOf(existingLeftHand);
-            activeStatesTransformsRef.current.splice(index, 1);
-
-            reset = currentInputSource.state === leftHand;
         }
 
         if (rightHandIsPinching) {
@@ -291,13 +337,20 @@ export default function Model({ model, metadata }: Props) {
             } else if (existingRightHand) {
                 existingRightHand.transform = rightHandTransformRef.current;
             }
-        } else if (existingRightHand) {
-            const currentInputSource = activeStatesTransformsRef.current[0];
+        }
 
-            const index = activeStatesTransformsRef.current.indexOf(existingRightHand);
-            activeStatesTransformsRef.current.splice(index, 1);
+        for (let i = activeStatesTransformsRef.current.length - 1; i >= 0; i--) {
+            const entry = activeStatesTransformsRef.current[i];
+            const stillActive =
+                (entry.state === leftController && leftControllerTriggerIsPressed) ||
+                (entry.state === rightController && rightControllerTriggerIsPressed) ||
+                (entry.state === leftHand && leftHandIsPinching) ||
+                (entry.state === rightHand && rightHandIsPinching);
 
-            reset = currentInputSource.state === rightHand;
+            if (!stillActive) {
+                if (i === 0) reset = true;
+                activeStatesTransformsRef.current.splice(i, 1);
+            }
         }
 
         reset = reset || activeStatesTransformsRef.current.length === 0;
@@ -437,13 +490,15 @@ export default function Model({ model, metadata }: Props) {
                         object={model} />
                 </mesh>
 
-                {metadata?.pois?.map((poi: any, index: number) => {
-                    return (
+                <group ref={poisGroupRef}>
+                    {metadata?.pois?.map((poi: any, index: number) => (
                         <Poi
                             key={index}
-                            poi={poi} />
-                    );
-                })}
+                            poi={poi}
+                            index={index}
+                            hoveredPoiIndicesRef={hoveredPoiIndicesRef} />
+                    ))}
+                </group>
             </group>
         </>
     );

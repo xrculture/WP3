@@ -1,6 +1,8 @@
 import type { XRHandState } from "@pmndrs/xr";
 import type { XRControllerState } from "@react-three/xr";
-import { ArrowHelper, Matrix4, Quaternion, Raycaster, Vector3, type Object3D, type Object3DEventMap, type Vector2 } from "three";
+import { ArrowHelper, LineBasicMaterial, Matrix4, Quaternion, Raycaster, Vector3, type Object3D, type Object3DEventMap, type Vector2 } from "three";
+
+const POINTER_DEFAULT_LENGTH = 50;
 
 /**
  * Raycast hit result with intersection data
@@ -99,7 +101,50 @@ export function updateArrowHelper(arrow: ArrowHelper | null | undefined, control
 
     arrow.position.copy(position);
     arrow.setDirection(direction);
-    arrow.setLength(2, 0.2, 0.1);
+    // No arrowhead: hide the cone and let the line span the full length.
+    arrow.cone.visible = false;
+    arrow.setLength(POINTER_DEFAULT_LENGTH, 0, 0);
+}
+
+
+export function setArrowHelperHighlight(arrow: ArrowHelper | null | undefined, highlighted: boolean) {
+    if (!arrow) return;
+
+    arrow.setColor(highlighted ? 0xffcc00 : 0xffffff);
+
+    const lineMat = arrow.line.material as LineBasicMaterial;
+    lineMat.depthTest = !highlighted;
+    lineMat.transparent = highlighted;
+
+    arrow.line.renderOrder = highlighted ? 9999 : 0;
+}
+
+
+export type PoiHit = {
+    index: number;
+    distance: number;
+};
+
+/**
+ * Raycast from a controller/hand pose into a group of POIs and return the
+ * nearest POI sphere actually hit, or null. Non-POI objects are ignored.
+ */
+export function raycastPoi(raycaster: Raycaster | null | undefined, transform: XRRigidTransform | null | undefined, group: Object3D | null | undefined): PoiHit | null {
+    if (!raycaster || !transform || !group) return null;
+
+    const position = new Vector3(transform.position.x, transform.position.y, transform.position.z);
+    const direction = new Vector3(0, 0, -1);
+    direction.applyQuaternion(new Quaternion(transform.orientation.x, transform.orientation.y, transform.orientation.z, transform.orientation.w));
+
+    raycaster.set(position, direction);
+    const intersects = raycaster.intersectObject(group, true);
+
+    for (const hit of intersects) {
+        const poiIndex = hit.object.userData?.poiIndex;
+        if (typeof poiIndex === "number") return { index: poiIndex, distance: hit.distance };
+    }
+
+    return null;
 }
 
 /**

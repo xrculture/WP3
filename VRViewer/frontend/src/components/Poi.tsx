@@ -1,13 +1,16 @@
 import { useRef, useState, useCallback } from "react";
 
-import { Box3, FrontSide, Vector3, type Object3D } from "three";
+import { Box3, FrontSide, MeshStandardMaterial, Vector3, type Object3D } from "three";
 
+import { useFrame } from "@react-three/fiber";
 import { Billboard, Text } from "@react-three/drei";
 
 import type { PoiData } from "../hooks/useModel";
 
 type Props = {
-    poi: PoiData
+    poi: PoiData;
+    index: number;
+    hoveredPoiIndicesRef: { current: Set<number> };
 };
 
 const PANEL_WIDTH = 2.0;
@@ -22,10 +25,25 @@ const DESC_FONT_SIZE_MIN = 0.035;
 const SPHERE_RENDER_ORDER = 999;
 const PANEL_RENDER_ORDER = 1000;
 
-export default function Poi({ poi }: Props) {
+const noRaycast = () => null;
+
+export default function Poi({ poi, index, hoveredPoiIndicesRef }: Props) {
     const poiRef = useRef<Object3D>(null);
+    const sphereMatRef = useRef<MeshStandardMaterial>(null);
 
     const [showInfo, setShowInfo] = useState(false);
+
+    useFrame(() => {
+        if (!sphereMatRef.current) return;
+        const isHovered = hoveredPoiIndicesRef.current.has(index);
+        if (showInfo) {
+            sphereMatRef.current.color.set('#c8a96e');
+        } else if (isHovered) {
+            sphereMatRef.current.color.set('#66b3ff');
+        } else {
+            sphereMatRef.current.color.set('#3a86ff');
+        }
+    });
     const [titleFontSize, setTitleFontSize] = useState(TITLE_FONT_SIZE_DEFAULT);
     const [descriptionFontSize, setDescFontSize] = useState(DESC_FONT_SIZE_DEFAULT);
     const [titleHeight, setTitleHeight] = useState(0.14);
@@ -85,6 +103,7 @@ export default function Poi({ poi }: Props) {
                 position={panelPosition}>
                 {/* Border — rendered first so background paints over it */}
                 <mesh
+                    raycast={noRaycast}
                     renderOrder={PANEL_RENDER_ORDER}
                     position={[0, 0, -0.02]}>
                     <planeGeometry args={[PANEL_WIDTH + 0.04, PANEL_HEIGHT + 0.04]} />
@@ -93,6 +112,7 @@ export default function Poi({ poi }: Props) {
 
                 {/* Background panel */}
                 <mesh
+                    raycast={noRaycast}
                     renderOrder={PANEL_RENDER_ORDER}
                     position={[0, 0, -0.01]}>
                     <planeGeometry args={[PANEL_WIDTH, PANEL_HEIGHT]} />
@@ -101,6 +121,7 @@ export default function Poi({ poi }: Props) {
 
                 {/* Title */}
                 <Text
+                    raycast={noRaycast}
                     renderOrder={PANEL_RENDER_ORDER}
                     onSync={handleTitleSync}
                     position={[0, PANEL_HEIGHT / 2 - PANEL_PADDING, 0]}
@@ -114,6 +135,7 @@ export default function Poi({ poi }: Props) {
 
                 {/* Divider line */}
                 <mesh
+                    raycast={noRaycast}
                     renderOrder={PANEL_RENDER_ORDER}
                     position={[0, dividerY, 0]}>
                     <planeGeometry args={[maxContentWidth, 0.005]} />
@@ -122,6 +144,7 @@ export default function Poi({ poi }: Props) {
 
                 {/* Description */}
                 <Text
+                    raycast={noRaycast}
                     renderOrder={PANEL_RENDER_ORDER}
                     onSync={handleDescriptionSync}
                     position={[-PANEL_WIDTH / 2 + PANEL_PADDING, descY, 0]}
@@ -141,9 +164,10 @@ export default function Poi({ poi }: Props) {
                 ref={poiRef}
                 renderOrder={SPHERE_RENDER_ORDER}
                 position={position}
+                userData={{ poiIndex: index }}
                 onClick={() => setShowInfo(!showInfo)}>
                 <sphereGeometry args={[0.15, 16, 16]} />
-                <meshStandardMaterial color={showInfo ? "#c8a96e" : "#3a86ff"} depthTest={false} depthWrite={false} />
+                <meshStandardMaterial ref={sphereMatRef} depthTest={false} depthWrite={false} />
             </mesh>
         </>
     );
