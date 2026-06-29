@@ -1,0 +1,14 @@
+﻿@model string
+@{
+    ViewData["Title"] = "Open Selected Model";
+    var viewer = ViewData["viewer"] as string;
+    var error = ViewData["error"] as string;
+}
+@if (!string.IsNullOrEmpty(error))
+{
+    <p>Failed: @error</p>
+}
+else
+{
+    <iframe src="@Model" title="@viewer" width="100%" height="500px" loading="lazy" allowfullscreen style="border:none;"></iframe>
+}

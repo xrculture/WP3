@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+  <ModelLoadingResponse>
+    <Status>200</Status>
+    <Message>Loading successful.</Message>
+    <Model>
+      <Id></Id>
+      <Title></Title>
+      <Provider></Provider>
+      <Rights></Rights>
+      <Preview></Preview>
+      <MediaUrls>
+        <Url></Url>
+      </MediaUrls>
+      <Supported3DFiles>
+        <FileCandidate>
+          <Url></Url>
+          <ContentType></ContentType>
+          <ContentLength></ContentLength>
+        </FileCandidate>
+      </Supported3DFiles>
+    </Model>
+
+  </ModelLoadingResponse>

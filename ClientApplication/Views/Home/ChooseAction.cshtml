@@ -1,0 +1,106 @@
+﻿@model Europeana3D.Web.Models.ChooseActionViewModel
+@{
+    ViewData["Title"] = "Choose Action";
+}
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const radios = document.querySelectorAll('input[name="SelectedAction"]');
+        const viewersDiv = document.getElementById("viewers");
+        const oEmbedLabel = document.getElementById("oEmbed-label");
+        const viewerSelect = document.getElementById("viewer");
+
+        const allViewers = [
+            @foreach (var v in Model.Viewers)
+            {
+                @:{ id: "@v.ProviderID", name: "@v.DisplayName", oEmbed: @(v.oEmbed ? "true" : "false") },
+            }
+        ];
+
+        const hasOEmbed = allViewers.some(v => v.oEmbed === true);
+        if (hasOEmbed) {
+            oEmbedLabel.style.display = "";
+        }
+
+        function populateViewers(oEmbedOnly) {
+            viewerSelect.innerHTML = "";
+            const filtered = oEmbedOnly ? allViewers.filter(v => v.oEmbed === true) : allViewers;
+            if (filtered.length === 0) {
+                const opt = document.createElement("option");
+                opt.textContent = "No compatible viewer";
+                opt.disabled = true;
+                viewerSelect.appendChild(opt);
+            } else {
+                filtered.forEach(v => {
+                    const opt = document.createElement("option");
+                    opt.value = v.id;
+                    opt.textContent = v.name;
+                    viewerSelect.appendChild(opt);
+                });
+            }
+        }
+
+        function updateUI() {
+            const selected = document.querySelector('input[name="SelectedAction"]:checked');
+            if (!selected) return;
+
+            if (selected.value === "download") {
+                viewersDiv.style.display = "none";
+            } else if (selected.value === "viewer") {
+                viewersDiv.style.display = "block";
+                populateViewers(false);
+            } else if (selected.value === "oEmbed") {
+                viewersDiv.style.display = "block";
+                populateViewers(true);
+            }
+        }
+
+        updateUI();
+
+        radios.forEach(radio => {
+            radio.addEventListener("change", updateUI);
+        });
+    });
+</script>
+
+
+<div class="choose">
+    <img src="@Model.Preview" alt="preview" />
+    <h2>@Model.Title</h2>
+
+
+    <form method="post">
+        <input type="hidden" asp-for="EuropeanaId" />
+        <input type="hidden" asp-for="SelectedUrl" />
+        <input type="hidden" asp-for="FileSize" />
+        <input type="hidden" asp-for="FileExtension" />
+        <fieldset>
+            <legend>Action</legend>
+            <label>
+                <input type="radio" name="SelectedAction" value="download" checked /> Download the model
+            </label>
+            <label>
+                <input type="radio" name="SelectedAction" value="viewer" /> Open in a viewer
+            </label>
+            <label id="oEmbed-label" style="display:none">
+                <input type="radio" name="SelectedAction" value="oEmbed" /> oEmbed endpoint
+            </label>
+        </fieldset>
+
+
+        <div id="viewers" style="display:none">
+            @if (!Model.Viewers.Any())
+            {
+                <p>No compatible 3D viewers were found.</p>
+            }
+            else
+            {
+                <label for="viewer">Viewer</label>
+                <select id="viewer" name="SelectedViewerProviderId"></select>
+            }
+        </div>
+
+
+        <button type="submit" style="margin-top:1.5rem">Proceed</button>
+    </form>
+</div>

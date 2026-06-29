@@ -1,0 +1,93 @@
+@model Europeana3D.Web.Models.ModelUploadResponse
+@{
+    ViewData["Title"] = "Upload Result";
+    bool success = Model.Status == 201;
+}
+
+<h2>Upload Result</h2>
+
+@if (success)
+{
+    <div class="alert alert-success">
+        <strong>@Model.Message</strong>
+    </div>
+
+    @if (Model.UploadedModel != null)
+    {
+        var m = Model.UploadedModel;
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">@m.Title</h5>
+                <p class="text-muted mb-1">Provider: <strong>@m.Provider</strong> &nbsp;|&nbsp; ID: <code>@m.Id</code></p>
+                @if (m.Published)
+                {
+                    <span class="badge bg-success mb-2">Published</span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary mb-2">Draft</span>
+                }
+
+                <table class="table table-sm mt-2">
+                    <tbody>
+                        @if (!string.IsNullOrEmpty(m.Rights))
+                        {
+                            <tr><th>Rights</th><td>@m.Rights</td></tr>
+                        }
+                        @if (!string.IsNullOrEmpty(m.PublicationYear))
+                        {
+                            <tr><th>Year</th><td>@m.PublicationYear</td></tr>
+                        }
+                        <tr><th>Uploaded at</th><td>@m.Timestamp</td></tr>
+                    </tbody>
+                </table>
+
+                <div class="mt-3 d-flex gap-2 flex-wrap">
+                    @if (!string.IsNullOrEmpty(m.RecordUrl))
+                    {
+                        <a href="@m.RecordUrl" target="_blank" class="btn btn-outline-primary">
+                            Open Record Page
+                        </a>
+                    }
+                    @if (!string.IsNullOrEmpty(m.DownloadUrl))
+                    {
+                        var ext = System.IO.Path.GetExtension(m.DownloadUrl).TrimStart('.');
+                        var chooseUrl = Url.Action("ChooseAction", "Home", new { id = m.Id, title = m.Title, url = m.DownloadUrl, extension = "." + ext });
+                        <a href="@m.DownloadUrl" target="_blank" class="btn btn-outline-secondary">
+                            Download File
+                        </a>
+                        <a href="@chooseUrl" class="btn btn-primary">
+                            View in 3D Viewer
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="alert alert-danger">
+        <strong>@Model.Message</strong>
+    </div>
+
+    @if (Model.Errors.Any())
+    {
+        <div class="card mt-3">
+            <div class="card-header">Error Details</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var err in Model.Errors)
+                {
+                    <li class="list-group-item">
+                        <code>@err.Code</code> — @err.Detail
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+}
+
+<div class="mt-4">
+    <a href="~/Upload/Index" class="btn btn-secondary">Upload Another</a>
+    <a href="~/Home/Index" class="btn btn-outline-secondary ms-2">Back to Search</a>
+</div>

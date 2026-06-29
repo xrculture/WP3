@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ModelLoadingRequest>
+  <ServiceID></ServiceID>
+  <SessionToken></SessionToken>
+  <Source>
+    <LocalSource>
+      <FileContent dimension="" extension="" filename="" name="" description="" />
+    </LocalSource>
+    <UrlSource>
+      <FileExtension></FileExtension>
+      <FileDimension></FileDimension>
+      <Url></Url>
+    </UrlSource>
+  </Source>
+  <SceneInit>
+    <Zoom default="True" />
+    <Pan default="True" />
+    <BackgroundColor default="True" />
+    <View default="True" />
+    <Lights default="True" />
+  </SceneInit>
+  <oEmbed></oEmbed>
+</ModelLoadingRequest>

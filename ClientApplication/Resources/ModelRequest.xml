@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ModelRequest>
+  <ServiceUrl></ServiceUrl>
+  <Pagination value="True" start="0" length="50" />
+  <Filters>
+    <Filter>
+      <SearchQuery></SearchQuery>
+      <AccessToken></AccessToken>
+    </Filter>
+  </Filters>
+</ModelRequest>

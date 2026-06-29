@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  ModelUpload Protocol – Middleware Demo
+  Defines the request/response schema for uploading a 3D model to a connected repository.
+  Compatible with: Zenodo Deposit API, AWS S3 PutObject, and future repository connectors.
+  Both schemas are wrapped in ModelUploadProtocol to form a valid XML document.
+-->
+<ModelUploadProtocol>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       REQUEST SCHEMA  –  ModelUploadRequest
+       Sent by the Middleware to the target repository connector.
+       ═══════════════════════════════════════════════════════════ -->
+  <ModelUploadRequest>
+
+    <!-- Target repository connector -->
+    <TargetRepository>
+      <ServiceID></ServiceID>          <!-- Unique connector ID: "zenodo" | "s3" | future providers -->
+      <ServiceUrl></ServiceUrl>        <!-- Base API endpoint of the repository -->
+      <AccessToken></AccessToken>      <!-- Auth token / API key (user-supplied) -->
+      <BucketName></BucketName>        <!-- Repository-specific container (S3 bucket, Zenodo community) -->
+    </TargetRepository>
+
+    <!-- File source: exactly one child element must be populated -->
+    <Source>
+
+      <!-- Option A: upload from local binary content (base64-encoded) -->
+      <LocalSource>
+        <FileContent
+          filename=""        <!-- original filename with extension, e.g. "statue.glb" -->
+          extension=""       <!-- file extension without dot, e.g. "glb" -->
+          mimetype=""        <!-- MIME type, e.g. "model/gltf-binary" -->
+          dimension=""       <!-- file size in bytes -->
+          encoding="base64"  <!-- always base64 for binary payloads -->
+        ></FileContent>
+      </LocalSource>
+
+      <!-- Option B: transfer from a remote URL -->
+      <UrlSource>
+        <Url></Url>                    <!-- Publicly accessible URL of the source file -->
+        <FileExtension></FileExtension><!-- Extension without dot, e.g. "obj" -->
+        <FileDimension></FileDimension><!-- Size in bytes (may be 0 if unknown) -->
+        <ContentType></ContentType>    <!-- MIME type from source HEAD/GET response -->
+      </UrlSource>
+
+    </Source>
+
+    <!-- Descriptive metadata attached to the upload record -->
+    <Metadata>
+      <Title></Title>
+      <Description></Description>
+      <Creator></Creator>
+      <Rights></Rights>                <!-- Rights statement URL or label (e.g. CC BY 4.0) -->
+      <License></License>              <!-- SPDX license identifier, e.g. "CC-BY-4.0" -->
+      <PublicationYear></PublicationYear>
+      <ResourceType>3D Model</ResourceType>
+      <Tags>
+        <Tag></Tag>                    <!-- Repeatable; one keyword per element -->
+      </Tags>
+    </Metadata>
+
+    <!-- Upload behaviour options -->
+    <UploadOptions>
+      <PublishImmediately value="False" /> <!-- False = save as draft; True = publish at once (Zenodo) -->
+      <OverwriteExisting value="False" />
+      <NotifyOnCompletion value="False" />
+    </UploadOptions>
+
+  </ModelUploadRequest>
+
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RESPONSE SCHEMA  –  ModelUploadResponse
+       Returned by the repository connector to the Middleware.
+       ═══════════════════════════════════════════════════════════ -->
+  <ModelUploadResponse>
+
+    <Status></Status>       <!-- HTTP-equivalent status: 201 Created, 400, 401, 500 -->
+    <Message></Message>
+
+    <!-- Populated on success (Status 201) -->
+    <UploadedModel>
+      <Id></Id>             <!-- Repository-assigned record identifier -->
+      <Title></Title>
+      <Provider></Provider> <!-- Target repository name, e.g. "Zenodo", "AWS S3" -->
+      <RecordUrl></RecordUrl>       <!-- Landing page / record URL in the repository -->
+      <DownloadUrl></DownloadUrl>   <!-- Direct download URL of the uploaded file -->
+      <Rights></Rights>
+      <PublicationYear></PublicationYear>
+      <Published value="False" />   <!-- True if publicly live; False if draft -->
+      <Timestamp></Timestamp>       <!-- ISO 8601 upload completion time -->
+    </UploadedModel>
+
+    <!-- Populated on failure -->
+    <Errors>
+      <Error>
+        <Code></Code>         <!-- Machine-readable error code, e.g. "INVALID_FORMAT" -->
+        <Detail></Detail>
+      </Error>
+    </Errors>
+
+  </ModelUploadResponse>
+
+</ModelUploadProtocol>

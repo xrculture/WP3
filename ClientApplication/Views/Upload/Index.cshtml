@@ -1,0 +1,237 @@
+@model Europeana3D.Web.Models.UploadViewModel
+@{
+    ViewData["Title"] = "Upload Model";
+    var repos = ViewData["repositories"] as List<Europeana3D.Web.Models.RepositoryOption> ?? new();
+    var reposJson = ViewData["reposJson"] as string ?? "[]";
+    var supportedFormats = ViewData["supportedFormats"] as string ?? "obj|ifc|dae|glb";
+    var acceptExts = string.Join(",", supportedFormats.Split("|").Select(e => $".{e}"));
+}
+
+<h2>Upload 3D Model to Repository</h2>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger">
+        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+            <div>@error.ErrorMessage</div>
+        }
+    </div>
+}
+
+<form method="post" action="~/Upload/Submit" enctype="multipart/form-data">
+
+    <!-- FILE SOURCE -->
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Source File</div>
+        <div class="card-body">
+            <div class="mb-2">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="sourceType" id="srcLocal" value="local" checked />
+                    <label class="form-check-label" for="srcLocal">Local file</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="sourceType" id="srcUrl" value="url" />
+                    <label class="form-check-label" for="srcUrl">Remote URL</label>
+                </div>
+            </div>
+
+            <div id="localFileDiv">
+                <label for="LocalFile" class="form-label">3D Model File</label>
+                <input type="file" class="form-control" id="LocalFile" name="LocalFile" accept="@acceptExts" />
+                <div class="form-text">Supported: @supportedFormats.Replace("|", ", ")</div>
+            </div>
+
+            <div id="urlDiv" style="display:none">
+                <label for="SourceUrl" class="form-label">Source URL</label>
+                <input type="text" class="form-control" id="SourceUrl" name="SourceUrl" placeholder="https://example.com/model.glb" value="@Model.SourceUrl" />
+            </div>
+        </div>
+    </div>
+
+    <!-- TARGET REPOSITORY -->
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Target Repository</div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="TargetRepositoryId" class="form-label">Repository</label>
+                <select class="form-select" id="TargetRepositoryId" name="TargetRepositoryId" required>
+                    <option value="">-- Select --</option>
+                    @foreach (var repo in repos)
+                    {
+                        if (Model.TargetRepositoryId == repo.ServiceName)
+                        {
+                            <option value="@repo.ServiceName" selected>@repo.ServiceName</option>
+                        }
+                        else
+                        {
+                            <option value="@repo.ServiceName">@repo.ServiceName</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <!-- Dynamic credential fields (shown based on selected repo's UploadParameters) -->
+            <div id="credFields">
+                <div id="field-AccessToken" class="mb-3" style="display:none">
+                    <label class="form-label" id="label-AccessToken">Access Token</label>
+                    <input type="password" class="form-control" name="AccessToken" id="AccessToken" value="@Model.AccessToken" />
+                </div>
+                <div id="field-BucketName" class="mb-3" style="display:none">
+                    <label class="form-label" id="label-BucketName">S3 Bucket Name</label>
+                    <input type="text" class="form-control" name="BucketName" id="BucketName" value="@Model.BucketName" placeholder="my-3d-bucket" />
+                </div>
+                <div id="field-FolderPath" class="mb-3" style="display:none">
+                    <label class="form-label" id="label-FolderPath">Subfolder </label>
+                    <input type="text" class="form-control" name="FolderPath" id="FolderPath" value="@Model.FolderPath" placeholder="my-subfolder" />
+                </div>
+                <div id="field-Community" class="mb-3" style="display:none">
+                    <label class="form-label" id="label-Community">Community ID </label>
+                    <input type="text" class="form-control" name="Community" id="Community" value="@Model.Community" placeholder="zenodo-community-slug" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- METADATA -->
+    <div class="card mb-3">
+        <div class="card-header fw-semibold">Metadata</div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="Title" class="form-label">Title <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="Title" name="Title" required value="@Model.Title" />
+            </div>
+            <div class="mb-3">
+                <label for="Description" class="form-label">Description</label>
+                <textarea class="form-control" id="Description" name="Description" rows="3">@Model.Description</textarea>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="Creator" class="form-label">Creator / Author</label>
+                    <input type="text" class="form-control" id="Creator" name="Creator" value="@Model.Creator" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="PublicationYear" class="form-label">Publication Year</label>
+                    <input type="number" class="form-control" id="PublicationYear" name="PublicationYear"
+                           min="1000" max="2100" value="@(Model.PublicationYear ?? DateTime.UtcNow.Year.ToString())" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="License" class="form-label">License</label>
+                    <select class="form-select" id="License" name="License">
+                        <option value="">-- Select --</option>
+                        @{ var lic = Model.License ?? ""; }
+                        @if (lic == "CC-BY-4.0") { <option value="CC-BY-4.0" selected>CC BY 4.0</option> }
+                        else { <option value="CC-BY-4.0">CC BY 4.0</option> }
+                        @if (lic == "CC-BY-SA-4.0") { <option value="CC-BY-SA-4.0" selected>CC BY-SA 4.0</option> }
+                        else { <option value="CC-BY-SA-4.0">CC BY-SA 4.0</option> }
+                        @if (lic == "CC0-1.0") { <option value="CC0-1.0" selected>CC0 1.0 (Public Domain)</option> }
+                        else { <option value="CC0-1.0">CC0 1.0 (Public Domain)</option> }
+                        @if (lic == "MIT") { <option value="MIT" selected>MIT</option> }
+                        else { <option value="MIT">MIT</option> }
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="Rights" class="form-label">Rights Statement</label>
+                    <input type="text" class="form-control" id="Rights" name="Rights" value="@Model.Rights" placeholder="https://creativecommons.org/licenses/by/4.0/" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="Tags" class="form-label">Tags <span class="text-muted">(comma-separated)</span></label>
+                <input type="text" class="form-control" id="Tags" name="Tags" value="@Model.Tags" placeholder="3D model, heritage, scan" />
+            </div>
+        </div>
+    </div>
+
+    <!-- UPLOAD OPTIONS (Zenodo only) -->
+    <div id="uploadOptionsDiv" class="card mb-3" style="display:none">
+        <div class="card-header fw-semibold">Upload Options</div>
+        <div class="card-body">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="PublishImmediately" name="PublishImmediately" value="true"
+                       @(Model.PublishImmediately ? "checked" : "") />
+                <label class="form-check-label" for="PublishImmediately">
+                    Publish immediately (makes the record publicly visible)
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Upload</button>
+    <a href="~/Home/Index" class="btn btn-secondary ms-2">Cancel</a>
+</form>
+
+@section Scripts {
+<script>
+    const repos = @Html.Raw(reposJson);
+
+    const repoSelect = document.getElementById('TargetRepositoryId');
+    const srcLocalRadio = document.getElementById('srcLocal');
+    const srcUrlRadio = document.getElementById('srcUrl');
+    const localFileDiv = document.getElementById('localFileDiv');
+    const urlDiv = document.getElementById('urlDiv');
+    const uploadOptionsDiv = document.getElementById('uploadOptionsDiv');
+
+    // Map param names to their container div IDs
+    const paramDivMap = {
+        'AccessToken': 'field-AccessToken',
+        'BucketName':  'field-BucketName',
+        'FolderPath':  'field-FolderPath',
+        'Community':   'field-Community'
+    };
+
+    function updateRepoFields() {
+        const selectedName = repoSelect.value;
+        const repo = repos.find(r => r.ServiceName === selectedName);
+
+        // Hide all credential fields first
+        Object.values(paramDivMap).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+
+        uploadOptionsDiv.style.display = 'none';
+
+        if (!repo) return;
+
+        // Show fields for user-supplied parameters
+        repo.UploadParameters
+            .filter(p => p.Source === 'user')
+            .forEach(p => {
+                const divId = paramDivMap[p.Name];
+                if (divId) {
+                    const div = document.getElementById(divId);
+                    if (div) {
+                        div.style.display = 'block';
+                        const label = document.getElementById('label-' + p.Name);
+                        if (label) label.textContent = p.Label + (p.Required ? ' *' : ' (optional)');
+                    }
+                }
+            });
+
+        // Show publish option only for Zenodo
+        if (selectedName === 'Zenodo') {
+            uploadOptionsDiv.style.display = 'block';
+        }
+    }
+
+    function updateSourceFields() {
+        if (srcLocalRadio.checked) {
+            localFileDiv.style.display = 'block';
+            urlDiv.style.display = 'none';
+        } else {
+            localFileDiv.style.display = 'none';
+            urlDiv.style.display = 'block';
+        }
+    }
+
+    repoSelect.addEventListener('change', updateRepoFields);
+    srcLocalRadio.addEventListener('change', updateSourceFields);
+    srcUrlRadio.addEventListener('change', updateSourceFields);
+
+    // Init
+    updateRepoFields();
+    updateSourceFields();
+</script>
+}

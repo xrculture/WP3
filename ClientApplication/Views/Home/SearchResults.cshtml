@@ -1,0 +1,556 @@
+﻿@using System.Text.Json
+@model List<Europeana3D.Web.Models.EuropeanaItem>
+
+@{
+    var repo = ViewBag.Repo as string ?? "";
+
+    var lightweightItems = Model.Select(m => new
+    {
+        Id = m.Id,
+        Title = m.Title,
+        Preview = m.Preview,
+        Url = m.Supported3DFiles.First().Url,
+        PrettySize = m.Supported3DFiles.First().PrettySize,
+        Extension = m.Supported3DFiles.First().Extension,
+        ContentLength = m.Supported3DFiles.First().ContentLength,
+        ContentType = m.Supported3DFiles.First().ContentType
+    });
+
+    var jsonItems = JsonSerializer.Serialize(lightweightItems);
+
+    string DisplayFilename(string url) {
+        try {
+            var segs = new Uri(url).AbsolutePath
+                .Split('/', StringSplitOptions.RemoveEmptyEntries);
+            // prefer the last segment that carries a file extension (handles Zenodo /content suffix)
+            var named = segs.LastOrDefault(s => System.IO.Path.GetExtension(s).Length > 1);
+            return named ?? segs.LastOrDefault() ?? url;
+        } catch { return url; }
+    }
+}
+
+
+<link rel="stylesheet" href="~/css/tree-folder.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+<div class="layout-shell">
+
+    <header style="display:flex;flex-direction:column;gap:.25rem;">
+        <div style="font-size:1.1rem;font-weight:600;color:var(--text-main);display:flex;align-items:center;gap:.5rem;">
+            <span>Search results</span>
+            <span style="font-size:.7rem;font-weight:500;color:var(--accent);background:rgba(79,70,229,.08);border:1px solid rgba(79,70,229,.3);border-radius:.5rem;padding:.15rem .4rem .2rem;">
+                @(repo == "S3" ? "Amazon S3" : repo)
+            </span>
+        </div>
+        <div style="font-size:.8rem;color:var(--text-dim);">
+            @if (!Model.Any())
+            {
+                <span>No 3D models with supported formats were found.</span>
+            }
+            else
+            {
+                <span>@Model.Count result@(Model.Count == 1 ? "" : "s")</span>
+            }
+        </div>
+    </header>
+
+    @if (Model.Any() && repo.Equals("S3", StringComparison.OrdinalIgnoreCase))
+    {
+        <!-- *** NEW/UPDATED ***
+             ADVANCED BROWSER VIEW FOR S3 -->
+        <section class="browser-shell" id="s3-browser-root" data-items='@Html.Raw(jsonItems)'>
+            <!-- LEFT: folder tree -->
+            <aside class="tree-pane">
+                <div class="tree-header">Folders</div>
+                <div class="tree-scroll" id="folderTree">
+                    <!-- populated by JS -->
+                </div>
+            </aside>
+
+            <!-- RIGHT: breadcrumb + file table -->
+            <main class="content-pane">
+                <div class="content-header">
+                    <nav class="breadcrumbs" id="breadcrumbs">
+                        <!-- populated by JS -->
+                    </nav>
+                    <div class="folder-meta" id="folderMeta">
+                        <!-- populated by JS -->
+                    </div>
+                </div>
+
+                <div class="filelist-scroll">
+                    <table class="file-table" id="fileTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Content</th>
+                                <th style="width:1%;white-space:nowrap;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </section>
+
+        <!-- Hidden forms reused by JS in S3 mode so we don't break existing controller actions -->
+        <div style="display:none;">
+            <form method="get" action="~/Home/ChooseAction" id="form-chosen">
+                <input type="hidden" name="id" value="" />
+                <input type="hidden" name="title" value="" />
+                <input type="hidden" name="preview" value="" />
+                <input type="hidden" name="url" value="" />
+                <input type="hidden" name="size" value="" />
+                <input type="hidden" name="extension" value="" />
+            </form>
+        </div>
+    }
+    else if (Model.Any())
+    {
+        <ul class="cards">
+            @foreach (var it in Model)
+            {
+                <li class="card">
+                    <div class="preview-carousel" data-previews="@JsonSerializer.Serialize(it.Previews)" data-index="0">
+                        <img src="@it.Preview" alt="preview" />
+                        @if (it.Previews.Count > 1)
+                        {
+                            <button type="button" class="carousel-btn carousel-prev">&#8249;</button>
+                            <button type="button" class="carousel-btn carousel-next">&#8250;</button>
+                        }
+                    </div>
+                    <h3>@it.Title</h3>
+                    <p><small>@it.Provider</small></p>
+                    @foreach (var f in it.Supported3DFiles)
+                    {
+                        <form method="get" action="~/Home/ChooseAction">
+                            <input type="hidden" name="id" value="@it.Id" />
+                            <input type="hidden" name="title" value="@it.Title" />
+                            <input type="hidden" name="preview" value="@it.Preview" />
+                            <input type="hidden" name="url" value="@f.Url" />
+                            <input type="hidden" name="size" value="@f.ContentLength" />
+                            <input type="hidden" name="extension" value="@f.Extension" />
+                            <button type="submit" class="w-100">
+                                <span class="w-50">@DisplayFilename(f.Url)</span>
+                                @if (f.ContentLength.HasValue)
+                                {
+                                    <span>@f.PrettySize</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(f.ContentType))
+                                {
+                                    <span>@f.ContentType</span>
+                                }
+                            </button>
+                        </form>
+                    }
+                </li>
+            }
+        </ul>
+    }
+
+</div>
+
+
+<style>
+    .preview-carousel {
+        position: relative;
+        width: 100%;
+        overflow: hidden;
+    }
+    .preview-carousel img {
+        width: 100%;
+        display: block;
+    }
+    .carousel-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0, 0, 0, 0.45);
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        font-size: 1.6rem;
+        line-height: 1;
+        padding: 0.15rem 0.45rem;
+        z-index: 1;
+        border-radius: 3px;
+        user-select: none;
+    }
+    .carousel-btn:hover { background: rgba(0, 0, 0, 0.7); }
+    .carousel-prev { left: 0; }
+    .carousel-next { right: 0; }
+</style>
+
+<script>
+    (function () {
+        document.querySelectorAll('.preview-carousel').forEach(function (c) {
+            var prev = c.querySelector('.carousel-prev');
+            var next = c.querySelector('.carousel-next');
+            if (!prev) return;
+            prev.addEventListener('click', function () { carouselNav(c, -1); });
+            next.addEventListener('click', function () { carouselNav(c, 1); });
+        });
+
+        function carouselNav(container, dir) {
+            var previews = JSON.parse(container.dataset.previews);
+            var idx = (parseInt(container.dataset.index) + dir + previews.length) % previews.length;
+            container.dataset.index = idx;
+            container.querySelector('img').src = previews[idx];
+        }
+    })();
+</script>
+
+@if (repo.Equals("S3", StringComparison.OrdinalIgnoreCase))
+{
+    <script>
+
+        (function() {
+
+            const rootEl = document.getElementById("s3-browser-root");
+            const rawItems = JSON.parse(rootEl.dataset.items || "[]");
+
+            // Build tree
+            const rootNode = {
+                name: "",
+                type: "folder",
+                children: {},
+                files: [],
+                pathParts: []
+            };
+
+            rawItems.forEach(it => {
+                const fullPath = (it.Title || "").replace(/^\/+/, ""); // strip leading slash if any
+                const segments = fullPath.split("/").filter(s => s.length > 0);
+
+                if (segments.length === 0) {
+                    // weird edge case: item with empty title?
+                    return;
+                }
+
+                const fileName = segments[segments.length - 1];
+                const folderSegs = segments.slice(0, -1);
+
+                // descend / create folders
+                let cursor = rootNode;
+                folderSegs.forEach((seg, idx) => {
+                    if (!cursor.children[seg]) {
+                        cursor.children[seg] = {
+                            name: seg,
+                            type: "folder",
+                            children: {},
+                            files: [],
+                            pathParts: cursor.pathParts.concat(seg)
+                        };
+                    }
+                    cursor = cursor.children[seg];
+                });
+
+                // add file node under cursor
+                const fileNode = {
+                    name: fileName,
+                    type: "file",
+                    pathParts: cursor.pathParts.concat(fileName),
+                    item: it
+                };
+                cursor.files.push(fileNode);
+            });
+
+            // UI state
+            let openFolders = new Set(); // store folder "fullPath" like "a/b/c"
+            let currentFolderPath = [];  // array of segments
+
+            // Helper: turn pathParts array into string key
+            function pathKey(parts) {
+                return parts.join("/");
+            }
+
+            // Initially, expand root
+            openFolders.add("");
+
+            // RENDER: Folder tree (left pane)
+            const folderTreeEl = document.getElementById("folderTree");
+
+            function renderFolderTree() {
+                folderTreeEl.innerHTML = "";
+                const frag = document.createDocumentFragment();
+
+                function walkFolder(node, depth) {
+                    // skip root line if depth==0? We *will* render root as "All files"
+                    const isRoot = depth === 0;
+                    const nodePathKey = pathKey(node.pathParts);
+
+                    // compute if expandable
+                    const hasChildren = Object.keys(node.children).length > 0 || node.files.length > 0;
+
+                    // caret state
+                    const isOpen = openFolders.has(nodePathKey);
+                    const caretChar = hasChildren ? (isOpen ? "▼" : "▶") : ""; // triangle icons
+                    const caretHiddenClass = hasChildren ? "" : "hidden";
+
+                    // active?
+                    const isActive = (nodePathKey === pathKey(currentFolderPath));
+
+                    // row
+                    const row = document.createElement("div");
+                    row.className = "tree-item";
+                    row.dataset.active = isActive ? "true" : "false";
+                    row.style.paddingLeft = (0.5 + depth * 1.0) + "rem";
+
+                    // indent "columns"
+                    const caret = document.createElement("div");
+                    caret.className = "caret " + (caretHiddenClass);
+                    caret.textContent = caretChar;
+
+                    const icon = document.createElement("div");
+                    icon.className = isOpen ? "fa-solid fa-folder-open" : "fa-solid fa-folder";
+
+                    const label = document.createElement("div");
+                    label.textContent = isRoot ? "All files" : node.name;
+
+                    row.appendChild(caret);
+                    row.appendChild(icon);
+                    row.appendChild(label);
+
+                    // clicking caret or row toggles/open/select
+                    row.addEventListener("click", () => {
+                        // select this folder
+                        currentFolderPath = node.pathParts.slice();
+
+                        // toggle expand if it has children
+                        if (hasChildren) {
+                            if (isOpen) {
+                                openFolders.delete(nodePathKey);
+                            } else {
+                                openFolders.add(nodePathKey);
+                            }
+                        }
+
+                        renderFolderTree();
+                        renderRightPane();
+                    });
+
+                    frag.appendChild(row);
+
+                    // children
+                    if (isOpen) {
+                        // list subfolders first (alphabetical)
+                        const subNames = Object.keys(node.children).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+                        subNames.forEach(name => {
+                            walkFolder(node.children[name], depth + 1);
+                        });
+                    }
+                }
+
+                walkFolder(rootNode, 0);
+                folderTreeEl.appendChild(frag);
+            }
+
+            // Get node by pathParts
+            function getFolderNodeByPath(parts) {
+                let cursor = rootNode;
+                for (const seg of parts) {
+                    if (!cursor.children[seg]) return null;
+                    cursor = cursor.children[seg];
+                }
+                return cursor;
+            }
+
+            // RENDER: Breadcrumbs, meta, and file table (right pane)
+            const breadcrumbsEl = document.getElementById("breadcrumbs");
+            const folderMetaEl = document.getElementById("folderMeta");
+            const fileTableBodyEl = document.querySelector("#fileTable tbody");
+
+            function renderRightPane() {
+                // current folder node
+                const node = getFolderNodeByPath(currentFolderPath) || rootNode;
+
+                // --- breadcrumbs ---
+                breadcrumbsEl.innerHTML = "";
+                // root crumb
+                const rootCrumb = document.createElement("span");
+                rootCrumb.textContent = "All files";
+                if (currentFolderPath.length === 0) {
+                    rootCrumb.classList.add("active");
+                }
+                rootCrumb.addEventListener("click", () => {
+                    currentFolderPath = [];
+                    renderFolderTree();
+                    renderRightPane();
+                });
+                breadcrumbsEl.appendChild(rootCrumb);
+
+                // build progressive crumbs
+                let runningPath = [];
+                currentFolderPath.forEach((seg, idx) => {
+                    const sep = document.createElement("span");
+                    sep.className = "sep";
+                    sep.textContent = "›";
+                    breadcrumbsEl.appendChild(sep);
+
+                    runningPath.push(seg);
+                    const crumb = document.createElement("span");
+                    crumb.textContent = seg;
+                    if (idx === currentFolderPath.length - 1) {
+                        crumb.classList.add("active");
+                    }
+                    crumb.addEventListener("click", () => {
+                        currentFolderPath = runningPath.slice(0, -1);
+                        renderFolderTree();
+                        renderRightPane();
+                    });
+                    breadcrumbsEl.appendChild(crumb);
+                });
+
+                // --- folder meta ---
+                const subfolderCount = Object.keys(node.children).length;
+                const fileCount = node.files.length;
+                folderMetaEl.textContent = subfolderCount + " folder" + (subfolderCount === 1 ? "" : "s")
+                    + " • " + fileCount + " file" + (fileCount === 1 ? "" : "s");
+
+                // --- file table ---
+                fileTableBodyEl.innerHTML = "";
+
+                // 1. subfolders
+                const subNames = Object.keys(node.children).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+                subNames.forEach(name => {
+                    const tr = document.createElement("tr");
+                    const folderNode = node.children[name];
+
+                    const tdName = document.createElement("td");
+                    tdName.className = "filename-cell";
+
+                    const icon = document.createElement("div");
+                    icon.className = "fa-solid fa-folder fa-3x";
+                    icon.style.color = "var(--accent)";
+                    tdName.appendChild(icon);
+
+                    const labelWrap = document.createElement("div");
+                    labelWrap.style.display = "flex";
+                    labelWrap.style.flexDirection = "column";
+
+                    const mainLine = document.createElement("div");
+                    mainLine.textContent = name;
+                    mainLine.style.fontWeight = "600";
+                    labelWrap.appendChild(mainLine);
+
+                    const subLine = document.createElement("div");
+                    subLine.textContent = "Folder";
+                    subLine.style.fontSize = ".7rem";
+                    subLine.style.color = "var(--text-dim)";
+                    labelWrap.appendChild(subLine);
+
+                    tdName.appendChild(labelWrap);
+
+                    const tdContent = document.createElement("td");
+                    tdContent.textContent = "";
+
+                    const tdActions = document.createElement("td");
+                    tdActions.innerHTML = "";
+
+                    tr.appendChild(tdName);
+                    tr.appendChild(tdContent);
+                    tr.appendChild(tdActions);
+
+                    tr.addEventListener("click", () => {
+                        currentFolderPath = folderNode.pathParts.slice();
+                        openFolders.add(pathKey(currentFolderPath));
+                        renderFolderTree();
+                        renderRightPane();
+                    });
+
+                    fileTableBodyEl.appendChild(tr);
+                });
+
+                // 2. files
+                node.files.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+                    .forEach(fileNode => {
+
+                        const it = fileNode.item;
+
+                        const tr = document.createElement("tr");
+
+                        // name cell
+                        const tdName = document.createElement("td");
+                        tdName.className = "filename-cell";
+
+                        if (it.Preview) {
+                            const img = document.createElement("img");
+                            img.className = "thumb";
+                            img.src = it.Preview;
+                            img.alt = fileNode.name;
+                            tdName.appendChild(img);
+                        } else {
+                            const icon = document.createElement("div");
+                            icon.className = "fa-solid fa-file";
+                            tdName.appendChild(icon);
+                        }
+
+                        const labelWrap = document.createElement("div");
+                        labelWrap.style.display = "flex";
+                        labelWrap.style.flexDirection = "column";
+
+                        const mainLine = document.createElement("div");
+                        mainLine.textContent = fileNode.name;
+                        mainLine.style.fontWeight = "500";
+                        mainLine.style.wordBreak = "break-all";
+                        labelWrap.appendChild(mainLine);
+
+                        const subLine = document.createElement("div");
+                        subLine.style.fontSize = ".7rem";
+                        subLine.style.color = "var(--text-dim)";
+                        subLine.textContent = fileNode.pathParts.join("/");
+                        labelWrap.appendChild(subLine);
+
+                        tdName.appendChild(labelWrap);
+
+                        // content cell
+                        const tdContent = document.createElement("td");
+                        tdContent.textContent = it.ContentLength ? it.ContentType + " \r\n (" + it.PrettySize + ")" : "";
+                        tdContent.style.color = "var(--text-dim)";
+                        tdContent.style.fontSize = "0.8rem";
+                        tdContent.style.whiteSpace = "pre-line";
+                        tdContent.width = "25%";
+
+                        // actions cell
+                        const tdActions = document.createElement("td");
+                        const actionsWrap = document.createElement("div");
+                        actionsWrap.className = "file-actions";
+
+                        // Download button
+                        const btnDown = document.createElement("button");
+                        btnDown.type = "button";
+                        btnDown.className = "btn-ghost";
+                        btnDown.textContent = "Choose";
+                        btnDown.addEventListener("click", (ev) => {
+                            ev.stopPropagation();
+                            var form = document.getElementById("form-chosen");
+                            form.querySelector("input[name=id]").value = it.Id;
+                            form.querySelector("input[name=title]").value = it.Title;
+                            form.querySelector("input[name=preview]").value = it.Preview;
+                            form.querySelector("input[name=url]").value = it.Url;
+                            form.querySelector("input[name=size]").value = it.ContentLength;
+                            form.querySelector("input[name=extension]").value = it.Extension;
+                            const input = document.getElementById("downloadInput");
+                            form.submit();
+                        });
+                        actionsWrap.appendChild(btnDown);
+
+                        tdActions.appendChild(actionsWrap);
+
+                        tr.appendChild(tdName);
+                        tr.appendChild(tdContent);
+                        tr.appendChild(tdActions);
+
+                        fileTableBodyEl.appendChild(tr);
+                    });
+            }
+
+            // Init
+            renderFolderTree();
+            renderRightPane();
+
+        })();
+    </script>
+}

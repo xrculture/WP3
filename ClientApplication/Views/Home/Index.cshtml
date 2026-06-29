@@ -1,0 +1,214 @@
+@{
+    ViewData["Title"] = "Search";
+    var viewers = ViewData["viewers"] as List<Europeana3D.Web.Models.ViewerOption> ?? new();
+    string supportedExt = ViewData["supportedExt"] as string ?? string.Empty;
+}
+
+<div class="xrc-search-hero">
+    <img src="~/images/logo.png" alt="XR Culture" class="xrc-logo-hero" />
+    <h1>XR Culture Middleware</h1>
+</div>
+
+<div class="xrc-search-card">
+
+    <!-- ── CLOUD SEARCH FORM ── -->
+    <form id="cloud-form" method="get" action="~/Home/Search">
+
+        <div class="xrc-field-row mb-3">
+            <label for="q" class="form-label xrc-label">Search query</label>
+            <input class="form-control xrc-input-lg" type="text" id="q" name="q"
+                   placeholder="e.g. statue, amphora, medieval sword…" required />
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+                <label for="repo" class="form-label xrc-label">Repository</label>
+                <select id="repo" name="repo" class="form-select">
+                    <option value="Europeana">Europeana</option>
+                    <option value="Zenodo">Zenodo</option>
+                    <option value="S3">Amazon S3</option>
+                    <option value="Local">Local Drive (upload)</option>
+                </select>
+            </div>
+
+            <div class="col-sm-6" id="s3bucket" style="display:none">
+                <label for="bucket" class="form-label xrc-label">S3 Bucket</label>
+                <input type="text" id="bucket" name="bucket" class="form-control"
+                       placeholder="my-3d-model-bucket" />
+            </div>
+
+            <div class="col-sm-6" id="zenodoapi" style="display:none">
+                <label for="apikey" class="form-label xrc-label">Zenodo Access Token <span class="text-muted">(optional)</span></label>
+                <input type="text" id="apikey" name="apikey" class="form-control"
+                       placeholder="Personal access token" />
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary px-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" class="me-1" viewBox="0 0 16 16">
+                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+            </svg>
+            Search
+        </button>
+    </form>
+
+    <!-- ── LOCAL UPLOAD FORM ── -->
+    <form id="upload-form" method="post" action="~/Home/UploadModel" enctype="multipart/form-data" style="display:none;">
+
+        <div class="mb-3">
+            <label for="file" class="form-label xrc-label">3D Model File</label>
+            <input type="file" id="file" name="file" class="form-control" accept="@supportedExt" required />
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+                <label for="modelname" class="form-label xrc-label">Model Name</label>
+                <input type="text" id="modelname" name="modelname" class="form-control" required />
+            </div>
+            <div class="col-sm-6">
+                <label for="description" class="form-label xrc-label">Description</label>
+                <input type="text" id="description" name="description" class="form-control" />
+            </div>
+        </div>
+
+        <div id="viewers" class="mb-3">
+            @if (!viewers.Any())
+            {
+                <p class="text-muted small">No compatible 3D viewers were found.</p>
+            }
+            else
+            {
+                <label for="viewer" class="form-label xrc-label">Viewer</label>
+                <select id="viewer" name="SelectedViewerProviderId" class="form-select" required>
+                    @foreach (var v in viewers)
+                    {
+                        <option value="@v.ProviderID">@v.DisplayName</option>
+                    }
+                </select>
+            }
+        </div>
+
+        <div class="mb-3">
+            <fieldset class="xrc-fieldset">
+                <legend>Action</legend>
+                <label class="form-check-label d-block mb-1">
+                    <input class="form-check-input me-1" type="radio" name="SelectedAction" value="viewer" /> Open in a viewer
+                </label>
+                <label class="form-check-label d-block" id="oEmbed-label" style="display:none">
+                    <input class="form-check-input me-1" type="radio" name="SelectedAction" value="oEmbed" /> oEmbed endpoint
+                </label>
+            </fieldset>
+        </div>
+
+        <button type="submit" class="btn btn-primary px-4">Continue</button>
+    </form>
+
+</div>
+
+<style>
+    .xrc-search-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        padding: 2rem;
+        max-width: 720px;
+        margin: 0 auto;
+    }
+
+    .xrc-label {
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: var(--text-main);
+    }
+
+    .xrc-input-lg {
+        font-size: 1rem;
+        padding: 0.6rem 0.9rem;
+    }
+
+    .xrc-fieldset {
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 0.65rem 1rem;
+        background: var(--bg-page);
+    }
+
+    .xrc-fieldset legend {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--xrc-purple);
+        padding: 0 0.4rem;
+        float: none;
+        width: auto;
+    }
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const repoSelect = document.getElementById("repo");
+        const cloudForm = document.getElementById('cloud-form');
+        const uploadForm = document.getElementById('upload-form');
+        const s3BucketDiv = document.getElementById("s3bucket");
+        const zenodoApiKeyDiv = document.getElementById("zenodoapi");
+        const viewerSelect = document.getElementById("viewer");
+        const oEmbedLabel = document.getElementById("oEmbed-label");
+        const oEmbedRadio = document.querySelector('input[name="SelectedAction"][value="oEmbed"]');
+
+        const viewerOEmbedMap = [
+            @foreach (var v in viewers)
+            {
+                @:{ id: "@v.ProviderID", name: "@v.DisplayName", oEmbed: @(v.oEmbed ? "true" : "false") },
+            }
+        ];
+
+        function toggleOEmbed() {
+            if (!viewerSelect || !oEmbedLabel) return;
+            const found = viewerOEmbedMap.find(v => v.id == viewerSelect.value);
+            const supportsOEmbed = found && found.oEmbed === true;
+            oEmbedLabel.style.display = supportsOEmbed ? "" : "none";
+            if (!supportsOEmbed && oEmbedRadio && oEmbedRadio.checked) {
+                const viewerRadio = document.querySelector('input[name="SelectedAction"][value="viewer"]');
+                if (viewerRadio) viewerRadio.checked = true;
+            }
+        }
+
+        function toggleS3Bucket() {
+            s3BucketDiv.style.display = repoSelect.value === "S3" ? "block" : "none";
+        }
+
+        function toggleZenodoApiKey() {
+            zenodoApiKeyDiv.style.display = repoSelect.value === "Zenodo" ? "block" : "none";
+        }
+
+        function updateUI() {
+            const isUpload = repoSelect.value === 'Local';
+            cloudForm.style.display = isUpload ? 'none' : 'block';
+            uploadForm.style.display = isUpload ? 'block' : 'none';
+            if (isUpload) {
+                toggleOEmbed();
+            } else {
+                if (oEmbedLabel) oEmbedLabel.style.display = 'none';
+                if (oEmbedRadio && oEmbedRadio.checked) {
+                    const viewerRadio = document.querySelector('input[name="SelectedAction"][value="viewer"]');
+                    if (viewerRadio) viewerRadio.checked = true;
+                }
+            }
+        }
+
+        updateUI();
+        toggleS3Bucket();
+        toggleZenodoApiKey();
+        toggleOEmbed();
+
+        repoSelect.addEventListener("change", function () {
+            toggleS3Bucket();
+            toggleZenodoApiKey();
+            updateUI();
+        });
+
+        if (viewerSelect) {
+            viewerSelect.addEventListener("change", toggleOEmbed);
+        }
+    });
+</script>
