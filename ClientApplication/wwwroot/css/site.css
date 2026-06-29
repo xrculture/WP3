@@ -1,0 +1,334 @@
+/* ─── XR Culture Design Tokens ──────────────────────────────────── */
+:root {
+    /* Brand colours (from logo) */
+    --xrc-purple:        #6B21A8;   /* deep purple – XR text */
+    --xrc-purple-dark:   #4C1480;   /* darker shade for gradients */
+    --xrc-purple-mid:    #9333EA;   /* mid-tone purple */
+    --xrc-purple-light:  #EDE9FE;   /* very light lavender for hovers */
+    --xrc-pink:          #EC4899;   /* hot-pink visor */
+    --xrc-pink-dark:     #BE185D;   /* darker pink for pressed states */
+    --xrc-pink-light:    #FCE7F3;   /* light pink tint */
+
+    /* Surfaces */
+    --bg-page:    #F7F5FF;   /* near-white with lavender cast */
+    --bg-panel:   #FFFFFF;
+    --bg-hover:   #EDE9FE;
+
+    /* Text */
+    --text-main:  #1E1B4B;   /* near-black with purple cast */
+    --text-dim:   #6B7280;
+    --text-inv:   #FFFFFF;
+
+    /* Borders & shadows */
+    --border-color: #DDD6FE;
+    --shadow-sm:    0 2px 8px rgba(107, 33, 168, 0.08);
+    --shadow-md:    0 8px 24px rgba(107, 33, 168, 0.12);
+
+    /* Accent alias (used by tree-folder.css & inline styles) */
+    --accent: var(--xrc-purple);
+
+    /* Layout */
+    --radius-lg: 1rem;
+    --radius-md: 0.625rem;
+    --navbar-h:  64px;
+}
+
+/* ─── Reset / Base ───────────────────────────────────────────────── */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg-page);
+    color: var(--text-main);
+    margin: 0;
+    min-height: 100vh;
+}
+
+/* ─── Navbar ─────────────────────────────────────────────────────── */
+.xrc-navbar {
+    background: linear-gradient(135deg, var(--xrc-purple-dark) 0%, var(--xrc-purple) 100%);
+    border-bottom: 2px solid var(--xrc-pink);
+    box-shadow: 0 4px 16px rgba(76, 20, 128, 0.35);
+    padding: 0.5rem 0;
+    min-height: var(--navbar-h);
+}
+
+.xrc-brand {
+    display: flex;
+    align-items: center;
+    padding: 0.25rem 0;
+}
+
+.xrc-brand img {
+    filter: brightness(1.05);
+    transition: transform 0.2s;
+}
+
+.xrc-brand:hover img {
+    transform: scale(1.04);
+}
+
+.xrc-nav-link {
+    color: rgba(255, 255, 255, 0.88) !important;
+    font-weight: 500;
+    font-size: 0.95rem;
+    padding: 0.5rem 1rem !important;
+    border-radius: var(--radius-md);
+    transition: background 0.15s, color 0.15s;
+}
+
+.xrc-nav-link:hover,
+.xrc-nav-link:focus {
+    color: var(--xrc-pink) !important;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.xrc-toggler {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.xrc-toggler .navbar-toggler-icon {
+    filter: invert(1);
+}
+
+/* ─── Main container ─────────────────────────────────────────────── */
+.container,
+.xrc-main-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* ─── Cards (search results) ─────────────────────────────────────── */
+ul.cards {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1rem;
+}
+
+.card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.card img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.card h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0.6rem 0 0.25rem;
+}
+
+.card small {
+    color: var(--text-dim);
+    font-size: 0.78rem;
+}
+
+/* ─── Buttons (inside cards / forms) ────────────────────────────── */
+.card form button[type="submit"],
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--xrc-purple) 0%, var(--xrc-purple-mid) 100%);
+    color: #fff;
+    transition: opacity 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 6px rgba(107, 33, 168, 0.3);
+}
+
+.card form button[type="submit"]:hover,
+.btn-primary:hover {
+    opacity: 0.9;
+    box-shadow: 0 4px 12px rgba(107, 33, 168, 0.4);
+}
+
+.btn-secondary {
+    background: #fff;
+    color: var(--xrc-purple);
+    border: 1.5px solid var(--xrc-purple);
+    border-radius: var(--radius-md);
+    padding: 0.45rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.btn-secondary:hover {
+    background: var(--xrc-purple-light);
+}
+
+/* Bootstrap btn override */
+a.btn.btn-primary,
+button.btn.btn-primary {
+    background: linear-gradient(135deg, var(--xrc-purple) 0%, var(--xrc-purple-mid) 100%);
+    border-color: transparent;
+    box-shadow: 0 2px 6px rgba(107, 33, 168, 0.3);
+}
+
+a.btn.btn-primary:hover,
+button.btn.btn-primary:hover {
+    background: linear-gradient(135deg, var(--xrc-purple-dark) 0%, var(--xrc-purple) 100%);
+    border-color: transparent;
+}
+
+a.btn.btn-secondary,
+button.btn.btn-secondary {
+    background: #fff;
+    color: var(--xrc-purple);
+    border-color: var(--xrc-purple);
+}
+
+a.btn.btn-secondary:hover,
+button.btn.btn-secondary:hover {
+    background: var(--xrc-purple-light);
+    color: var(--xrc-purple);
+    border-color: var(--xrc-purple);
+}
+
+/* ─── Forms & inputs ─────────────────────────────────────────────── */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--xrc-purple-mid);
+    box-shadow: 0 0 0 0.2rem rgba(147, 51, 234, 0.2);
+}
+
+.form-check-input:checked {
+    background-color: var(--xrc-purple);
+    border-color: var(--xrc-purple);
+}
+
+/* ─── Bootstrap card overrides (Upload page) ────────────────────── */
+.card-header.fw-semibold {
+    background: linear-gradient(135deg, var(--xrc-purple) 0%, var(--xrc-purple-mid) 100%);
+    color: #fff;
+    border-bottom: none;
+    border-radius: var(--radius-md) var(--radius-md) 0 0 !important;
+    font-size: 0.9rem;
+    padding: 0.65rem 1rem;
+}
+
+.card.mb-3 {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+/* ─── ChooseAction page ──────────────────────────────────────────── */
+.choose img {
+    max-width: 320px;
+    display: block;
+    margin-bottom: 1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.choose fieldset {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    background: var(--bg-panel);
+}
+
+.choose legend {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--xrc-purple);
+    padding: 0 0.4rem;
+}
+
+.choose label {
+    display: block;
+    margin: 0.35rem 0;
+    font-size: 0.9rem;
+}
+
+.choose select {
+    border-color: var(--border-color);
+}
+
+.choose button[type="submit"] {
+    background: linear-gradient(135deg, var(--xrc-pink-dark) 0%, var(--xrc-pink) 100%);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 0.5rem 1.4rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(236, 72, 153, 0.35);
+    transition: opacity 0.15s;
+}
+
+.choose button[type="submit"]:hover {
+    opacity: 0.9;
+}
+
+/* ─── Alerts ─────────────────────────────────────────────────────── */
+.alert-danger {
+    background: var(--xrc-pink-light);
+    border-color: var(--xrc-pink);
+    color: var(--xrc-pink-dark);
+    border-radius: var(--radius-md);
+}
+
+/* ─── Page headings ──────────────────────────────────────────────── */
+h2 {
+    color: var(--xrc-purple);
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+}
+
+/* ─── Home search form ───────────────────────────────────────────── */
+.xrc-search-hero {
+    text-align: center;
+    padding: 2.5rem 0 1.5rem;
+}
+
+.xrc-search-hero .xrc-logo-hero {
+    height: 72px;
+    margin-bottom: 1rem;
+}
+
+.xrc-search-hero h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--xrc-purple);
+    margin-bottom: 0.25rem;
+}
+
+.xrc-search-hero p {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
