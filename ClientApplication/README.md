@@ -67,6 +67,86 @@ dotnet run
 
 Requires .NET 6 SDK. The app listens on the ports configured in `Properties/launchSettings.json`.
 
+## Docker
+
+The Docker setup lives in the [`Docker/`](Docker/) folder. It builds a self-contained linux-x64 image with **Apache 2** as reverse proxy and **Kestrel** as the application server.
+
+### Quick start
+
+```bash
+# 1. Copy the environment template
+cp Docker/.env.example Docker/.env
+
+# 2. Fill in your credentials
+#    EUROPEANA_API_KEY, AWS_ACCESS_KEY, AWS_SECRET_KEY, VIEWERS_REMOTE_ENDPOINT
+$EDITOR Docker/.env
+
+# 3. Build and start
+cd Docker
+docker compose up -d
+```
+
+The app is then available at <http://localhost>.
+
+### Environment variables
+
+All sensitive settings are passed as environment variables, which override the values in `appsettings.json`.
+
+| Variable | appsettings.json key | Description |
+|---|---|---|
+| `EUROPEANA_API_KEY` | `Options.EuropeanaApiKey` | Europeana REST API key |
+| `AWS_REGION` | `AWS.Region` | AWS region (default: `eu-west-1`) |
+| `AWS_ACCESS_KEY` | `AWS.AccessKey` | AWS access key ID |
+| `AWS_SECRET_KEY` | `AWS.SecretKey` | AWS secret access key |
+| `VIEWERS_SOURCE` | `Viewers.Source` | `remote` or `local` (default: `remote`) |
+| `VIEWERS_REMOTE_ENDPOINT` | `Viewers.RemoteEndpoint` | Hub registry URL with session token |
+
+### Persistent volume
+
+The application reads and writes files under `Resources/` (XML protocol messages, downloaded models). This directory is declared as a Docker volume so data survives container restarts:
+
+```bash
+# Named volume (managed by Docker — default)
+docker compose up -d
+
+# Bind mount to a host path instead
+docker run -v /host/path/resources:/app/Resources ghcr.io/<org>/<repo>:latest
+```
+
+### Build locally
+
+```bash
+# From the repository root
+docker build -f Docker/Dockerfile -t xrculture-middleware .
+docker run -p 80:80 \
+  -e Options__EuropeanaApiKey=<key> \
+  -e AWS__Region=eu-west-1 \
+  -e AWS__AccessKey=<key> \
+  -e AWS__SecretKey=<secret> \
+  -e Viewers__Source=remote \
+  -e Viewers__RemoteEndpoint=<url> \
+  -v xrculture_resources:/app/Resources \
+  xrculture-middleware
+```
+
+### Pull from GitHub Container Registry
+
+```bash
+docker pull ghcr.io/xrculture/wp3:latest
+```
+
+The image is published automatically on every push to `main`/`master` and on version tags (`v*`) via the GitHub Actions workflow at [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml).
+
+### Container internals
+
+| Component | Details |
+|---|---|
+| Base image | `mcr.microsoft.com/dotnet/runtime-deps:6.0` (Debian slim) |
+| Web server | Apache 2 on port 80 (reverse proxy) |
+| App server | Kestrel on `127.0.0.1:5000` (not exposed externally) |
+| Volume | `/app/Resources` |
+| Health check | `GET http://localhost/` every 30 s |
+
 ## API endpoints
 
 All endpoints accept and return the XRCulture protocol XML messages.
