@@ -5,5 +5,4 @@ set -e
 apache2ctl start
 
 # Start Kestrel as the foreground process (PID 1).
-# Container lifetime is tied to this process.
-exec /app/XRCultureClientApp
+exec dotnet /app/XRCultureClientApp.dll
