@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  xrculture:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+    image: ghcr.io/xrculture/wp3:latest
+    ports:
+      - "80:80"
+    environment:
+      # ── Europeana ────────────────────────────────────────────────
+      - Options__EuropeanaApiKey=${EUROPEANA_API_KEY}
+
+      # ── AWS S3 ───────────────────────────────────────────────────
+      - AWS__Region=${AWS_REGION:-eu-west-1}
+      - AWS__AccessKey=${AWS_ACCESS_KEY}
+      - AWS__SecretKey=${AWS_SECRET_KEY}
+
+      # ── Viewers registry ─────────────────────────────────────────
+      # Set to "local" to use the bundled Resources/Viewers.xml
+      - Viewers__Source=${VIEWERS_SOURCE:-remote}
+      - Viewers__RemoteEndpoint=${VIEWERS_REMOTE_ENDPOINT}
+
+      # ── ASP.NET Core ─────────────────────────────────────────────
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+
+    volumes:
+      # Persists Resources/ across restarts (XML responses + model downloads)
+      - xrculture_resources:/app/Resources
+
+    restart: unless-stopped
+
+volumes:
+  xrculture_resources:
