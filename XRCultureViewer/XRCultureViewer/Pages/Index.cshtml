@@ -1,0 +1,73 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+    var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
+}
+
+<h1 class="display-5 fw-bold mb-4">Library</h1>
+
+@foreach (var modelDescriptor in Model.GetModels())
+{
+    var viewer = modelDescriptor?.Extension?.Equals(".splat", StringComparison.OrdinalIgnoreCase) == true ||
+        modelDescriptor?.Extension?.Equals(".ply", StringComparison.OrdinalIgnoreCase) == true ?
+            "GaussianSplattingViewer" : "Viewer";
+    var viewerUrl = $"{baseUrl}/{viewer}?model={modelDescriptor.Id}{modelDescriptor.Extension}";
+    var oEmbedUrl = $"{baseUrl}/oembed?url={Uri.EscapeDataString(viewerUrl)}&format=json";
+    var downloadUrl = $"{baseUrl}/Storage?handler=Model&id={modelDescriptor.Id}{modelDescriptor.Extension}";
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header d-flex align-items-center gap-2">
+            <i class="bi bi-box fs-5 text-secondary"></i>
+            <h5 class="mb-0">@modelDescriptor.Name</h5>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center">
+
+                <!-- Metadata column -->
+                <div class="col-md-8">
+                    <dl class="row mb-3">
+                        <dt class="col-sm-3">Name</dt>
+                        <dd class="col-sm-9">@modelDescriptor.Name</dd>
+                        <dt class="col-sm-3">Description</dt>
+                        <dd class="col-sm-9">@(string.IsNullOrEmpty(modelDescriptor.Description) ? "—" : modelDescriptor.Description)</dd>
+                        <dt class="col-sm-3">Created</dt>
+                        <dd class="col-sm-9">@modelDescriptor.TimeStamp</dd>
+                    </dl>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="@viewerUrl" target="_blank" class="btn btn-primary btn-sm">
+                            <i class="bi bi-eye me-1"></i>View
+                        </a>
+                        <a href="@oEmbedUrl" target="_blank" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-code-slash me-1"></i>oEmbed
+                        </a>
+                        <a href="@downloadUrl" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-download me-1"></i>Download
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Thumbnail column -->
+                <div class="col-md-4 d-flex justify-content-center mt-3 mt-md-0">
+                    @if (!string.IsNullOrEmpty(modelDescriptor.ThumbnailUrl))
+                    {
+                        <a href="@modelDescriptor.ThumbnailUrl" target="_blank">
+                            <img src="@modelDescriptor.ThumbnailUrl"
+                                 alt="Thumbnail for @modelDescriptor.Name"
+                                 class="img-thumbnail"
+                                 style="height: 160px; width: 320px; object-fit: cover;" />
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="border rounded d-flex align-items-center justify-content-center bg-light text-muted w-100"
+                             style="height: 160px; max-width: 320px;">
+                            <span><i class="bi bi-image fs-2"></i><br />No thumbnail</span>
+                        </div>
+                    }
+                </div>
+
+            </div>
+        </div>
+    </div>
+}

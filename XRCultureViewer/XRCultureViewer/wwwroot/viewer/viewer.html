@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>WebGL Viewer</title>
+    <script src="scripts/gl-matrix-min.js"></script>
+    <!--MAUI WebView2 integration-->
+    <!--<script src="scripts/HybridWebView.js"></script>-->
+    <script async src="emifcengine.js"></script>
+    <script src="scripts/log.js"></script>
+    <script src="scripts/webgl.js"></script>
+    <script src="scripts/load.js"></script>
+    <script src="scripts/selectionbuffer.js"></script>
+    <script src="scripts/viewer.js"></script>
+    <script src="scripts/interaction.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #1e1e1e;
+            color: #fff;
+        }
+
+        .settings-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(37, 37, 38, 0.85);
+            border: 1px solid rgba(60, 60, 60, 0.8);
+            min-width: 200px;
+            z-index: 1000;
+            font-size: 13px;
+            backdrop-filter: blur(10px);
+        }
+
+        .settings-header {
+            padding: 8px 12px;
+            background: rgba(45, 45, 48, 0.9);
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+        }
+
+            .settings-header::before {
+                content: '▼';
+                margin-right: 8px;
+                font-size: 10px;
+                transition: transform 0.2s;
+            }
+
+            .settings-header.collapsed::before {
+                transform: rotate(-90deg);
+            }
+
+        .settings-content {
+            padding: 8px 12px;
+            max-height: 500px;
+            overflow: auto;
+            transition: max-height 0.3s ease;
+        }
+
+            .settings-content.collapsed {
+                max-height: 0;
+                padding: 0 12px;
+                overflow: hidden;
+            }
+
+        .setting-item {
+            padding: 6px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+            .setting-item label {
+                cursor: pointer;
+                flex: 1;
+            }
+
+            .setting-item input[type="checkbox"] {
+                margin-left: 8px;
+                width: 16px;
+                height: 16px;
+                cursor: pointer;
+            }
+
+        .reset-button {
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(14, 99, 156, 0.9);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            font-size: 13px;
+        }
+
+            .reset-button:hover {
+                background: rgba(17, 119, 187, 0.95);
+            }
+
+            .reset-button:active {
+                background: rgba(13, 86, 137, 0.95);
+            }
+    </style>
+    <script>
+        var g_geometries = [];
+
+        async function beginLoadModel(model) {
+            try {
+                g_geometries = [];
+
+                g_viewer.preLoadModel();
+                g_viewer._model.name = model.name;
+                g_viewer._model.Xmin = g_viewer._worldDimensions.Xmin = model.Xmin;
+                g_viewer._model.Ymin = g_viewer._worldDimensions.Ymin = model.Ymin;
+                g_viewer._model.Zmin = g_viewer._worldDimensions.Zmin = model.Zmin;
+                g_viewer._model.Xmax = g_viewer._worldDimensions.Xmax = model.Xmax;
+                g_viewer._model.Ymax = g_viewer._worldDimensions.Ymax = model.Ymax;
+                g_viewer._model.Zmax = g_viewer._worldDimensions.Zmax = model.Zmax;
+                g_viewer._model.boundingSphereDiameter = g_viewer._worldDimensions.MaxDistance = model.boundingSphereDiameter;
+                g_viewer._model.scaleFactor = model.scaleFactor;
+                window.logInfo(`[beginLoadModel] Model: ${g_viewer._model.name}`);
+                window.logInfo(`[beginLoadModel] Xmin=${g_viewer._worldDimensions.Xmin}, Xmax=${g_viewer._worldDimensions.Xmax}, Ymin=${g_viewer._worldDimensions.Ymin}, Ymax=${g_viewer._worldDimensions.Ymax}, Zmin=${g_viewer._worldDimensions.Zmin}, Zmax=${g_viewer._worldDimensions.Zmax}`);
+                window.logInfo(`[beginLoadModel] Max distance=${g_viewer._worldDimensions.MaxDistance}`);
+                window.logInfo(`[beginLoadModel] Scale factor=${g_viewer._scaleFactor}`);
+            }
+            catch (e) {
+                window.logErr(e);
+            }
+        }
+
+        async function addGeometry(geometry) {
+            try {
+                if (!geometry || !geometry.instances || geometry.instances.length === 0) {
+                    window.logWarn("addGeometry: No instances found in geometry.");
+                    return;
+                }
+
+                // Keep original visible state
+                for (let i = 0; i < geometry.instances.length; i++) {
+                    const instance = geometry.instances[i];
+                    instance._visible = instance.visible;
+                }
+
+                // Geometry
+                g_geometries.push(geometry);
+            }
+            catch (e) {
+                window.logErr(e);
+            }
+        }
+
+        async function addGeometries(geometries) {
+            try {
+                if (!geometries || geometries.length === 0) {
+                    return;
+                }
+
+                for (let g = 0; g < geometries.length; g++) {
+                    // Keep original visible state
+                    for (let i = 0; i < geometries[g].instances.length; i++) {
+                        const instance = geometries[g].instances[i];
+                        instance._visible = instance.visible;
+                    }
+
+                    // Geometry
+                    g_geometries.push(geometries[g]);
+                }
+            }
+            catch (e) {
+                window.logErr(e);
+            }
+        }
+
+        async function endLoadModel() {
+            try {
+                g_viewer.loadModel(g_geometries);
+            }
+            catch (e) {
+                window.logErr(e);
+            }
+            g_geometries = [];
+        }
+
+        async function loadDecorationModelsWASM() {
+            try {
+                if (Module.HEAP8) {
+                    window.logInfo(`Memory used: ${Module.HEAP8.length / 1024 / 1024} MB`);
+                }
+
+                const decorationModelsCount = Module.getDecorationModelsCount();
+                window.logInfo(`Decoration models count: ${decorationModelsCount}`);
+
+                const decorationModels = [];
+                for (let m = 0; m < decorationModelsCount; m++) {
+                    const modelData = Module.getDecorationModelData(m);
+                    console.time(`Loading decoration model: ${modelData.name}`);
+
+                    // Loading geometries
+                    const geometries = [];
+                    for (let i = 0; i < modelData.geometriesCount; i++) {
+                        const geometryData = Module.getDecorationModelGeometryData(modelData.modelIndex, i);
+                        const verticesArray = new Float32Array(
+                            Module.HEAPF32.buffer,
+                            geometryData.vertices.data,
+                            geometryData.vertices.size
+                        );
+
+                        // Conceptual Faces
+                        const conceptualFacesArray = [];
+                        for (let j = 0; j < geometryData.conceptualFaces.size(); j++) {
+                            const faceData = geometryData.conceptualFaces.get(j);
+                            const conceptualFaces = new Uint32Array(
+                                Module.HEAP32.buffer,
+                                faceData.data,
+                                faceData.size
+                            );
+                            if (faceData.texture?.length) {
+                                if (!g_viewer._textures[faceData.texture]) {
+                                    const texture = createTexture_WASM_FS.call(g_viewer, '/data/' + faceData.texture, textureFlipY);
+                                    if (texture) {
+                                        g_viewer._textures[faceData.texture] = texture;
+                                        window.logInfo(`Loaded texture: ${faceData.texture}`);
+                                    }
+                                }
+                            }
+
+                            conceptualFacesArray.push({
+                                indices: conceptualFaces,
+                                material: {
+                                    ambient: [0, 0, 0],
+                                    diffuse: [0, 0, 0],
+                                    specular: [0, 0, 0],
+                                    emissive: [0, 0, 0],
+                                    transparency: faceData.transparency,
+                                    texture: faceData.texture?.length ? {
+                                        name: faceData.texture
+                                    } : null
+                                }
+                            });
+
+                            if (faceData.material && (faceData.material.size() === 12)) {
+                                conceptualFacesArray[j].material.ambient = [];
+                                for (let k = 0; k < 3; k++) {
+                                    conceptualFacesArray[j].material.ambient.push(faceData.material.get(k));
+                                }
+                                conceptualFacesArray[j].material.diffuse = [];
+                                for (let k = 3; k < 6; k++) {
+                                    conceptualFacesArray[j].material.diffuse.push(faceData.material.get(k));
+                                }
+                                conceptualFacesArray[j].material.specular = [];
+                                for (let k = 6; k < 9; k++) {
+                                    conceptualFacesArray[j].material.specular.push(faceData.material.get(k));
+                                }
+                                conceptualFacesArray[j].material.emissive = [];
+                                for (let k = 9; k < 12; k++) {
+                                    conceptualFacesArray[j].material.emissive.push(faceData.material.get(k));
+                                }
+                            }
+                        }
+
+                        // Conceptual Faces Polygons
+                        const conceptualFacesPolygonsArray = [];
+                        for (let j = 0; j < geometryData.conceptualFacesPolygons.size(); j++) {
+                            const indexData = geometryData.conceptualFacesPolygons.get(j);
+                            const conceptualFacesPolygons = new Uint32Array(
+                                Module.HEAP32.buffer,
+                                indexData.data,
+                                indexData.size
+                            );
+
+                            conceptualFacesPolygonsArray.push({
+                                indices: conceptualFacesPolygons
+                            });
+                        }
+
+                        // Lines
+                        const conceptualFacesLinesArray = [];
+                        for (let j = 0; j < geometryData.conceptualFacesLines.size(); j++) {
+                            const indexData = geometryData.conceptualFacesLines.get(j);
+                            const conceptualFacesLines = new Uint32Array(
+                                Module.HEAP32.buffer,
+                                indexData.data,
+                                indexData.size
+                            );
+
+                            conceptualFacesLinesArray.push({
+                                indices: conceptualFacesLines,
+                                color: [0, 0, 0]
+                            });
+
+                            if (indexData.color && (indexData.color.size() === 3)) {
+                                conceptualFacesLinesArray[j].color[0] = indexData.color.get(0);
+                                conceptualFacesLinesArray[j].color[1] = indexData.color.get(1);
+                                conceptualFacesLinesArray[j].color[2] = indexData.color.get(2);
+                            }
+                        }
+
+                        // Points
+                        const conceptualFacesPointsArray = [];
+                        for (let j = 0; j < geometryData.conceptualFacesPoints.size(); j++) {
+                            const indexData = geometryData.conceptualFacesPoints.get(j);
+                            const conceptualFacesPoints = new Uint32Array(
+                                Module.HEAP32.buffer,
+                                indexData.data,
+                                indexData.size
+                            );
+
+                            conceptualFacesPointsArray.push({
+                                indices: conceptualFacesPoints,
+                                color: [0, 0, 0]
+                            });
+
+                            if (indexData.color && (indexData.color.size() === 3)) {
+                                conceptualFacesPointsArray[j].color[0] = indexData.color.get(0);
+                                conceptualFacesPointsArray[j].color[1] = indexData.color.get(1);
+                                conceptualFacesPointsArray[j].color[2] = indexData.color.get(2);
+                            }
+                        }
+
+                        // Instances
+                        const instancesArray = [];
+                        for (let j = 0; j < geometryData.instances.size(); j++) {
+                            const instanceData = geometryData.instances.get(j);
+                            const instance = {
+                                id: instanceData.id,
+                                visible: instanceData.visible,
+                                matrix: null,
+                                parentId: instanceData.parentId,
+                                childrenIds: null
+                            };
+
+                            if (instanceData.matrix && (instanceData.matrix.size() === 16)) {
+                                instance.matrix = [];
+                                for (let k = 0; k < 16; k++) {
+                                    instance.matrix.push(instanceData.matrix.get(k));
+                                }
+                            }
+                            if (instanceData.childrenIds && (instanceData.childrenIds.size() > 0)) {
+                                instance.childrenIds = [];
+                                for (let k = 0; k < instanceData.childrenIds.size(); k++) {
+                                    instance.childrenIds.push(instanceData.childrenIds.get(k));
+                                }
+                            }
+
+                            instancesArray.push(instance);
+                        }
+
+                        const geometry = {
+                            vertices: verticesArray,
+                            vertexSizeInBytes: geometryData.vertexSizeInBytes,
+                            conceptualFaces: conceptualFacesArray,
+                            conceptualFacesPolygons: conceptualFacesPolygonsArray,
+                            conceptualFacesLines: conceptualFacesLinesArray,
+                            conceptualFacesPoints: conceptualFacesPointsArray,
+                            instances: instancesArray
+                        };
+
+                        // Keep original visible state
+                        for (let i = 0; i < geometry.instances.length; i++) {
+                            const instance = geometry.instances[i];
+                            instance._visible = instance.visible;
+                        }
+
+                        // Geometry
+                        geometries.push(geometry);
+                    } // for (let i = 0; i < modelData.geometriesCount; i++)
+
+                    const decorationModel = {
+                        name: modelData.name,
+                        Xmin: modelData.Xmin,
+                        Ymin: modelData.Ymin,
+                        Zmin: modelData.Zmin,
+                        Xmax: modelData.Xmax,
+                        Ymax: modelData.Ymax,
+                        Zmax: modelData.Zmax,
+                        boundingSphereDiameter: modelData.boundingSphereDiameter,
+                        scaleFactor: modelData.scaleFactor,
+                        geometries: geometries
+                    };
+                    decorationModels.push(decorationModel);
+
+                    console.timeEnd(`Loading decoration model: ${modelData.name}`);
+                } // for (let m = 0; m < decorationModelsCount; m++)
+
+                g_viewer.loadDecorationModels(decorationModels);
+
+                if (Module.HEAP8) {
+                    window.logInfo(`Memory used: ${Module.HEAP8.length / 1024 / 1024} MB`);
+                }
+            } catch (e) {
+                window.logErr(e);
+            }
+        }
+
+        async function loadModelWASM(modelPath) {
+            try {
+                let textureFlipY = false;
+                var fileExtension = getFileExtension(modelPath)
+                if (fileExtension === 'binz') {
+                    textureFlipY = true;
+                }
+
+                g_geometries = [];
+
+                if (Module.HEAP8) {
+                    window.logInfo(`Memory used: ${Module.HEAP8.length / 1024 / 1024} MB`);
+                }
+
+                console.time('Loading model (WASM)');
+                const modelData = Module.loadModel(modelPath);
+                if (modelData.modelIndex < 0) {
+                    window.logErr("Failed to load model.");
+                    return;
+                }
+                console.timeEnd('Loading model (WASM)');
+
+                // Begin model loading
+                console.time('Initializing WebGL (JavaScript)');
+                await beginLoadModel(modelData);
+
+                // Loading geometries
+                for (let i = 0; i < modelData.geometriesCount; i++) {
+                    const geometryData = Module.getGeometryData(modelData.modelIndex, i);
+                    const verticesArray = new Float32Array(
+                        Module.HEAPF32.buffer,
+                        geometryData.vertices.data,
+                        geometryData.vertices.size
+                    );
+
+                    // Conceptual Faces
+                    const conceptualFacesArray = [];
+                    for (let j = 0; j < geometryData.conceptualFaces.size(); j++) {
+                        const faceData = geometryData.conceptualFaces.get(j);
+                        const conceptualFaces = new Uint32Array(
+                            Module.HEAP32.buffer,
+                            faceData.data,
+                            faceData.size
+                        );
+                        if (faceData.texture?.length) {
+                            if (!g_viewer._textures[faceData.texture]) {
+                                const texture = createTexture_WASM_FS.call(g_viewer, '/data/' + faceData.texture, textureFlipY);
+                                if (texture) {
+                                    g_viewer._textures[faceData.texture] = texture;
+                                    window.logInfo(`Loaded texture: ${faceData.texture}`);
+                                }
+                            }
+                        }
+
+                        conceptualFacesArray.push({
+                            indices: conceptualFaces,
+                            material: {
+                                ambient: [0, 0, 0],
+                                diffuse: [0, 0, 0],
+                                specular: [0, 0, 0],
+                                emissive: [0, 0, 0],
+                                transparency: faceData.transparency,
+                                texture: faceData.texture?.length ? {
+                                    name: faceData.texture
+                                } : null
+                            }
+                        });
+
+                        if (faceData.material && (faceData.material.size() === 12)) {
+                            conceptualFacesArray[j].material.ambient = [];
+                            for (let k = 0; k < 3; k++) {
+                                conceptualFacesArray[j].material.ambient.push(faceData.material.get(k));
+                            }
+                            conceptualFacesArray[j].material.diffuse = [];
+                            for (let k = 3; k < 6; k++) {
+                                conceptualFacesArray[j].material.diffuse.push(faceData.material.get(k));
+                            }
+                            conceptualFacesArray[j].material.specular = [];
+                            for (let k = 6; k < 9; k++) {
+                                conceptualFacesArray[j].material.specular.push(faceData.material.get(k));
+                            }
+                            conceptualFacesArray[j].material.emissive = [];
+                            for (let k = 9; k < 12; k++) {
+                                conceptualFacesArray[j].material.emissive.push(faceData.material.get(k));
+                            }
+                        }
+                    }
+
+                    // Conceptual Faces Polygons
+                    const conceptualFacesPolygonsArray = [];
+                    for (let j = 0; j < geometryData.conceptualFacesPolygons.size(); j++) {
+                        const indexData = geometryData.conceptualFacesPolygons.get(j);
+                        const conceptualFacesPolygons = new Uint32Array(
+                            Module.HEAP32.buffer,
+                            indexData.data,
+                            indexData.size
+                        );
+
+                        conceptualFacesPolygonsArray.push({
+                            indices: conceptualFacesPolygons
+                        });
+                    }
+
+                    // Lines
+                    const conceptualFacesLinesArray = [];
+                    for (let j = 0; j < geometryData.conceptualFacesLines.size(); j++) {
+                        const indexData = geometryData.conceptualFacesLines.get(j);
+                        const conceptualFacesLines = new Uint32Array(
+                            Module.HEAP32.buffer,
+                            indexData.data,
+                            indexData.size
+                        );
+
+                        conceptualFacesLinesArray.push({
+                            indices: conceptualFacesLines,
+                            color: [0, 0, 0]
+                        });
+
+                        if (indexData.color && (indexData.color.size() === 3)) {
+                            conceptualFacesLinesArray[j].color[0] = indexData.color.get(0);
+                            conceptualFacesLinesArray[j].color[1] = indexData.color.get(1);
+                            conceptualFacesLinesArray[j].color[2] = indexData.color.get(2);
+                        }
+                    }
+
+                    // Points
+                    const conceptualFacesPointsArray = [];
+                    for (let j = 0; j < geometryData.conceptualFacesPoints.size(); j++) {
+                        const indexData = geometryData.conceptualFacesPoints.get(j);
+                        const conceptualFacesPoints = new Uint32Array(
+                            Module.HEAP32.buffer,
+                            indexData.data,
+                            indexData.size
+                        );
+
+                        conceptualFacesPointsArray.push({
+                            indices: conceptualFacesPoints,
+                            color: [0, 0, 0]
+                        });
+
+                        if (indexData.color && (indexData.color.size() === 3)) {
+                            conceptualFacesPointsArray[j].color[0] = indexData.color.get(0);
+                            conceptualFacesPointsArray[j].color[1] = indexData.color.get(1);
+                            conceptualFacesPointsArray[j].color[2] = indexData.color.get(2);
+                        }
+                    }
+
+                    // Instances
+                    const instancesArray = [];
+                    for (let j = 0; j < geometryData.instances.size(); j++) {
+                        const instanceData = geometryData.instances.get(j);
+                        const instance = {
+                            id: instanceData.id,
+                            visible: instanceData.visible,
+                            matrix: null,
+                            parentId: instanceData.parentId,
+                            childrenIds: null
+                        };
+
+                        if (instanceData.matrix && (instanceData.matrix.size() === 16)) {
+                            instance.matrix = [];
+                            for (let k = 0; k < 16; k++) {
+                                instance.matrix.push(instanceData.matrix.get(k));
+                            }
+                        }
+                        if (instanceData.childrenIds && (instanceData.childrenIds.size() > 0)) {
+                            instance.childrenIds = [];
+                            for (let k = 0; k < instanceData.childrenIds.size(); k++) {
+                                instance.childrenIds.push(instanceData.childrenIds.get(k));
+                            }
+                        }
+
+                        instancesArray.push(instance);
+                    }
+
+                    await addGeometry({
+                        vertices: verticesArray,
+                        vertexSizeInBytes: geometryData.vertexSizeInBytes,
+                        conceptualFaces: conceptualFacesArray,
+                        conceptualFacesPolygons: conceptualFacesPolygonsArray,
+                        conceptualFacesLines: conceptualFacesLinesArray,
+                        conceptualFacesPoints: conceptualFacesPointsArray,
+                        instances: instancesArray
+                    });
+                }
+
+                // Finalize model loading
+                await endLoadModel();
+                console.timeEnd('Initializing WebGL (JavaScript)');
+
+                // Unload model after loading
+                //Module.unloadModel(modelData.modelIndex); // #todo: clear cache?
+
+                if (Module.HEAP8) {
+                    window.logInfo(`Memory used: ${Module.HEAP8.length / 1024 / 1024} MB`);
+                }
+            } catch (e) {
+                window.logErr(e);
+            }
+        }
+
+        function toggleSettingsPanel() {
+            const header = document.querySelector('.settings-header');
+            const content = document.querySelector('.settings-content');
+            header.classList.toggle('collapsed');
+            content.classList.toggle('collapsed');
+        }
+
+        function onFacesChange(checkbox) {
+            _showFaces(checkbox.checked);
+        }
+
+        function onWireframesChange(checkbox) {
+            _showWireframes(checkbox.checked);
+        }
+
+        function onLinesChange(checkbox) {
+            _showLines(checkbox.checked);
+        }
+
+        function onPointsChange(checkbox) {
+            _showPoints(checkbox.checked);
+        }
+
+        function onModelCSChange(checkbox) {
+            _showModelCS(checkbox.checked);
+        }
+
+        function onWorldCSChange(checkbox) {
+            _showWorldCS(checkbox.checked);
+        }
+
+        function onNavigatorChange(checkbox) {
+            _showNavigator(checkbox.checked);
+        }
+
+        function onBackgroundColorChange(colorPicker) {
+            const color = colorPicker.value;
+            const r = parseInt(color.substr(1, 2), 16) / 255;
+            const g = parseInt(color.substr(3, 2), 16) / 255;
+            const b = parseInt(color.substr(5, 2), 16) / 255;
+            if (g_viewer) {
+                g_viewer._clearColor = [r, g, b, 1.0];
+            }
+
+            PENDING_DRAW_SCENE = true;
+        }
+
+        function onSelectionColorChange(colorPicker) {
+            const color = colorPicker.value;
+            const r = parseInt(color.substr(1, 2), 16) / 255;
+            const g = parseInt(color.substr(3, 2), 16) / 255;
+            const b = parseInt(color.substr(5, 2), 16) / 255;
+            SELECTED_INSTANCE_MATERIAL.ambient = [r, g, b];
+            SELECTED_INSTANCE_MATERIAL.diffuse = [r, g, b];
+            SELECTED_INSTANCE_MATERIAL.specular = [r, g, b];
+            SELECTED_INSTANCE_MATERIAL.emissive = [r, g, b];
+
+            PENDING_DRAW_SCENE = true;
+        }
+
+        function onSelectionTransparencyChange(slider) {
+            const transparency = slider.value;
+            document.getElementById('transparency-value').textContent = transparency + '%';
+            SELECTED_INSTANCE_MATERIAL.transparency = transparency / 100;
+
+            PENDING_DRAW_SCENE = true;
+        }
+
+        function onResetSettings() {
+            _resetView();
+
+            document.getElementById('faces-checkbox').checked = g_viewer._showConceptualFaces;
+            document.getElementById('wireframes-checkbox').checked = g_viewer._showConceptualFacesPolygons;
+            document.getElementById('lines-checkbox').checked = g_viewer._showLines;
+            document.getElementById('points-checkbox').checked = g_viewer._showPoints;
+        }
+
+        async function generateAndUploadThumbnail(modelId) {
+            try {
+                // Wait WebGL to initialize
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                const dataURL = g_viewer.captureSnapshot(512, 512);
+                if (!dataURL) {
+                    throw new Error('captureSnapshot returned null');
+                }
+
+                const base64 = dataURL.split(',')[1];
+                const response = await fetch('/Storage?handler=Thumbnail', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ modelId: modelId, imageBase64: base64 })
+                });
+
+                if (response.ok) {
+                    window.parent.postMessage({ type: 'thumbnail-done', modelId: modelId }, '*');
+                }
+            } catch (e) {
+                window.logErr(e);
+                window.parent.postMessage({ type: 'thumbnail-error', modelId: modelId }, '*');
+            }
+        }
+
+        g_onSelectEvent = function (instanceIDs) {
+            try {
+                // MAUI WebView2 integration
+                //window.HybridWebView.InvokeDotNet('OnSelectEvent', [instanceIDs]);
+            } catch (e) {
+                window.logErr(e);
+            }
+        };
+
+        g_onRuntimeInitializedEvent = function () {
+            try {
+                setTimeout(() => {
+                    initializeWebGLViewer();
+                }, 100);
+
+            } catch (e) {
+                window.logErr(e);
+            }
+        }
+
+        g_onWebGLInitializedEvent = function () {
+            try {
+                setTimeout(() => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const modelId = urlParams.get('model');
+                    const thumbnailMode = urlParams.get('thumbnail') === '1';
+                    if (modelId) {
+                        try {
+                            window.logInfo(`Fetching modelId: ${modelId}`);
+
+                            // Use fetch API to get the binary data
+                            fetch('/Storage?handler=Model&id=' + encodeURIComponent(modelId), {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'application/octet-stream',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            }).then(response => {
+                                if (!response.ok) {
+                                    throw new Error('Network response was not ok: ' + response.status);
+                                }
+
+                                const contentType = response.headers.get('Content-Type');
+                                window.logInfo(`Content-Type: ${contentType}`);
+
+                                if (contentType && contentType.includes('text/html')) {
+                                    throw new Error('Received HTML instead of binary data');
+                                }
+
+                                return response.arrayBuffer();
+                            }).then(async function (data) {
+                                window.logInfo(`Received data size: ${data.byteLength}`);
+
+                                if (!Module.FS.analyzePath('/data').exists) {
+                                    Module.FS.mkdir('/data');
+                                }
+                                const wasmFSModel = '/data/' + getFileNameWithExtension(modelId);
+                                Module.FS.writeFile(wasmFSModel, new Uint8Array(data));
+
+                                await loadModelWASM(wasmFSModel);
+                                await loadDecorationModelsWASM();
+
+                                if (thumbnailMode) {
+                                    setTimeout(() => {
+                                        window.parent.postMessage({ type: 'thumbnail-done', modelId: modelId }, '*');
+                                    }, 500);                                    
+                                }
+                            }).catch(e => {
+                                if (thumbnailMode) {
+                                    window.parent.postMessage({ type: 'thumbnail-error', modelId: modelId }, '*');
+                                }
+                                window.logErr(e);
+                            });
+                        }
+                        catch (e) {
+                            if (thumbnailMode) {
+                                window.parent.postMessage({ type: 'thumbnail-error', modelId: modelId }, '*');
+                            }
+                            window.logErr(e);
+                        }
+                    }
+                }, 100);
+
+                // MAUI WebView2 integration
+                //window.HybridWebView.InvokeDotNet('OnInitializeEvent');
+            } catch (e) {
+                window.logErr(e);
+            }
+        };
+    </script>
+
+</head>
+<body>
+    <h4>Loading...</h4>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel">
+        <div class="settings-header collapsed" onclick="toggleSettingsPanel()">
+            Settings
+        </div>
+        <div class="settings-content collapsed">
+            <div class="setting-item">
+                <label for="faces-checkbox">Faces</label>
+                <input type="checkbox" id="faces-checkbox" checked onchange="onFacesChange(this)">
+            </div>
+            <div class="setting-item">
+                <label for="wireframes-checkbox">Wireframes</label>
+                <input type="checkbox" id="wireframes-checkbox" onchange="onWireframesChange(this)">
+            </div>
+            <div class="setting-item">
+                <label for="lines-checkbox">Lines</label>
+                <input type="checkbox" id="lines-checkbox" checked onchange="onLinesChange(this)">
+            </div>
+            <div class="setting-item">
+                <label for="points-checkbox">Points</label>
+                <input type="checkbox" id="points-checkbox" checked onchange="onPointsChange(this)">
+            </div>
+            <div class="setting-item">
+                <label for="model-cs-checkbox">Model CS</label>
+                <input type="checkbox" id="model-cs-checkbox" checked onchange="onModelCSChange(this)">
+            </div>
+            <div class="setting-item">
+                <label for="world-cs-checkbox">World CS</label>
+                <input type="checkbox" id="world-cs-checkbox" onchange="onWorldCSChange(this)">
+            </div>
+            <div class="setting-item">
+                <label for="navigator-checkbox">Navigator</label>
+                <input type="checkbox" id="navigator-checkbox" checked onchange="onNavigatorChange(this)">
+            </div>
+            <div class="setting-item" style="flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 0; border-top: 1px solid rgba(60, 60, 60, 0.8); margin-top: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <label for="background-color-picker">Background Color</label>
+                    <input type="color" id="background-color-picker" value="#E6E6E6" onchange="onBackgroundColorChange(this)" style="width: 50px; height: 30px; cursor: pointer; border: 1px solid rgba(60, 60, 60, 0.8); background: transparent;">
+                </div>
+            </div>
+            <div class="setting-item" style="flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 0; border-top: 1px solid rgba(60, 60, 60, 0.8); margin-top: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <label for="selection-color-picker">Selection Color</label>
+                    <input type="color" id="selection-color-picker" value="#FF0000" onchange="onSelectionColorChange(this)" style="width: 50px; height: 30px; cursor: pointer; border: 1px solid rgba(60, 60, 60, 0.8); background: transparent;">
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <label for="transparency-slider">Transparency</label>
+                    <span id="transparency-value" style="min-width: 35px; text-align: right; font-size: 11px; color: #999;">100%</span>
+                </div>
+                <input type="range" id="transparency-slider" min="0" max="100" value="100" oninput="onSelectionTransparencyChange(this)" style="width: 100%; cursor: pointer;">
+            </div>
+            <button class="reset-button" onclick="onResetSettings()">Reset</button>
+        </div>
+    </div>
+
+    <div id='canvas_container' class="canvas_container" style="height: 100%; width: 100%; position: absolute; top: 0; left: 0;">
+        <canvas id='canvas-element-id' style="width: 100%; height: 100%; display: block;">
+            Your browser does not support the HTML5 canvas element.
+        </canvas>
+    </div>
+</body>
+</html>

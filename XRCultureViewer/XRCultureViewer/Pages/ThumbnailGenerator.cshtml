@@ -1,0 +1,39 @@
+﻿@page
+@model XRCultureViewer.Pages.ThumbnailGeneratorModel
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Thumbnail Generator</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #thumb-frame {
+            width: 1280px;
+            height: 720px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        window.__thumbnailReady = false;
+
+        window.addEventListener('message', function (e) {
+            if (e.data?.type === 'thumbnail-done') {
+                console.log('Thumbnail ready for:', e.data.modelId);
+                window.__thumbnailReady = true;
+            } else if (e.data?.type === 'thumbnail-error') {
+                console.error('Thumbnail generation failed for:', e.data.modelId);
+                window.__thumbnailReady = 'error';
+            }
+        });
+    </script>
+    <iframe id="thumb-frame"
+            src="@Model.GetThumbnailIFrameUrl()"
+            aria-hidden="true">
+    </iframe>
+</body>
+</html>

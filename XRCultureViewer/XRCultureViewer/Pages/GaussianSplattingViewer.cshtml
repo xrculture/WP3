@@ -1,0 +1,18 @@
+﻿@page
+@model XRCultureViewer.Pages.GaussianSplattingViewerModel
+@{
+    ViewData["Title"] = "Gaussian Splatting Viewer";
+    Layout = "_ViewerLayout";
+
+    var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
+    var viewerUrl = Uri.EscapeDataString($"{baseUrl}/GaussianSplattingViewer?model={Model.Model}");
+    var oembedJson = $"{baseUrl}/oembed?url={viewerUrl}&format=json";
+    var oembedXml = $"{baseUrl}/oembed?url={viewerUrl}&format=xml";
+}
+
+@section HeadContent {
+    <link rel="alternate" type="application/json+oembed" href="@oembedJson" title="Gaussian Splatting Viewer" />
+    <link rel="alternate" type="text/xml+oembed" href="@oembedXml" title="Gaussian Splatting Viewer" />
+}
+
+<iframe src="~/viewer/gaussiansplattingviewer.html?model=@Model.Model" style="width: 100%; height: 100vh; border: none;"></iframe>
