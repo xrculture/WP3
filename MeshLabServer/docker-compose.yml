@@ -1,0 +1,17 @@
+services:
+  xrculturemeshlab:
+    image: xrculturemeshlab:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.prebuilt
+    ports:
+      - "5195:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+    volumes:
+      - xrculture_data:/xrculture/meshlab
+    restart: unless-stopped
+
+volumes:
+  xrculture_data:
