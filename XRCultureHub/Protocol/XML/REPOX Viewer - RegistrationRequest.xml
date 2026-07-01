@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Protocol version="1.0">
+	<RegistrationRequest>
+		<ProviderID>REPOX</ProviderID>
+		<ServiceName>REPOX 3D Viewer</ServiceName>
+		<ServiceType>Viewer</ServiceType>
+		<EndPoint>https://3dapi.repox.io/xrculture/models</EndPoint>
+		<SessionToken>%SESSION_TOKEN%</SessionToken>
+		<ContactEmail>admin@example.com</ContactEmail>
+		<BackEnd>
+			<Access-Control-Allow-Origin>*</Access-Control-Allow-Origin>
+			<!-- for CORS. Make sure that the viewer can be accessed outside your domain, with a direct link/URL -->
+			<SupportedOptions>
+				<Architecture value="REST">
+					<Access-Control-Allow-Method>*</Access-Control-Allow-Method>
+				</Architecture>
+				<Analytics>
+					<UsageTracking enabled="False" />
+				</Analytics>
+				<ProgressiveLoading value="False" />
+				<TimeMachine value="False" />
+				<FileFormats>
+					<Format extension=".fbx" mimetype="application/octet-stream" native="True" />
+					<Format extension=".gltf" mimetype="model/gltf+json" native="True" />
+					<Format extension=".glb" mimetype="model/gltf-binary" native="True" />
+					<Format extension=".obj" mimetype="model/obj" native="True" />
+					<Format extension=".dae" mimetype="model/vnd.collada+xml" native="True" />
+					<Format extension=".ply" mimetype="application/octet-stream" native="True" />
+				</FileFormats>
+				<DataProviders></DataProviders>
+				<FullText></FullText>
+				<Protocols></Protocols>
+				<Authentication></Authentication>
+			</SupportedOptions>
+		</BackEnd>
+		<FrontEnd>
+			<GUI>
+				<ViewType value="False" />
+				<Languages>
+					<Language default="True">en-US</Language>
+				</Languages>
+				<MobileOptimization value="False" />
+				<MaxPolygonCount>1000000</MaxPolygonCount>
+				<MaxTextureSize>4096</MaxTextureSize>
+			</GUI>
+			<SupportedOptions>
+				<Scene>
+					<!-- Scene Setup and Update -->
+					<Autoload value="False" />
+					<Zoom value="True" />
+					<Pan value="True" />
+					<BackgroundColor value="000,FFF,DD2500,ALL" default="000" />
+					<!-- RGB -->
+					<View value="Top,Bottom,Front,Back,Left,Right" default="Front" />
+					<Lights value="False" />
+					<!-- changing lights is allowed or not -->
+					<VR value="False" />
+					<!-- supports for Virtual Reality -->
+				</Scene>
+				<MultipleModels></MultipleModels>
+				<ElementSelection value="none>"></ElementSelection>
+				<Elements></Elements>
+				<Measuring></Measuring>
+				<Attachments></Attachments>
+				<CustomBBox value="False" />
+			</SupportedOptions>
+		</FrontEnd>
+		<Timestamp>2025-05-20T14:00:00Z</Timestamp>
+	</RegistrationRequest>
+</Protocol>

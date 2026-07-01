@@ -1,0 +1,47 @@
+﻿@page
+@model XRCultureHub.Pages.IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<h3>Viewers</h3>
+
+@{
+    foreach (var viewerDescriptor in Model.GetViewers())
+    {
+        <div class="card mb-3">
+            <h5 class="card-header">@viewerDescriptor.EndPoint</h5>
+            <div class="card-body">
+                <p class="card-text"><strong>Id:</strong> @viewerDescriptor.Id</p>
+                <p class="card-text"><strong>Provider Id:</strong> @viewerDescriptor.ProviderId</p>
+                <p class="card-text"><strong>Service Name:</strong> @viewerDescriptor.ServiceName</p>
+                <p class="card-text"><strong>Service Type:</strong> @viewerDescriptor.ServiceType</p>
+                <p class="card-text"><strong>Created:</strong> @viewerDescriptor.TimeStamp</p>
+            </div>
+        </div>
+    }
+}
+
+<h3>Services</h3>
+
+@{
+    foreach (var serviceDescriptor in Model.GetServices())
+    {
+        <div class="card mb-3">
+            <h5 class="card-header">@serviceDescriptor.EndPoint</h5>
+            <div class="card-body">
+                <p class="card-text"><strong>Id:</strong> @serviceDescriptor.Id</p>
+                <p class="card-text"><strong>Provider Id:</strong> @serviceDescriptor.ProviderId</p>
+                <p class="card-text"><strong>Service Name:</strong> @serviceDescriptor.ServiceName</p>
+                <p class="card-text"><strong>Service Type:</strong> @serviceDescriptor.ServiceType</p>
+                <p class="card-text"><strong>EndPoint:</strong> @serviceDescriptor.EndPoint</p>
+                @{
+                    if (@serviceDescriptor.ServiceType == "Repository")
+                    {
+                        <p class="card-text"><strong>UploadEndPoint:</strong> @serviceDescriptor.UploadEndPoint</p>
+                    }
+                }
+            </div>
+        </div>
+    }
+}

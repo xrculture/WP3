@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Protocol version="1.0">
+	<RegistrationRequest>
+		<ProviderID>RDF LTD</ProviderID>
+		<ServiceName>RDF LTD Thumbnail Generator</ServiceName>
+		<ServiceType>ThumbnailGenerator</ServiceType>
+		<EndPoint>http://localhost:6130/ThumbnailGenerator</EndPoint>
+		<SessionToken>%SESSION_TOKEN%</SessionToken>
+		<ContactEmail>admin@example.com</ContactEmail>
+		<BackEnd>
+			<Access-Control-Allow-Origin>https://developer.mozilla.org</Access-Control-Allow-Origin>
+			<!-- for CORS. Make sure that the repository can be accessed outside your domain, with a direct link/URL -->
+			<SupportedOptions>
+				<Architecture value="REST">
+					<!-- possible values: REST, WASM -->
+					<Access-Control-Allow-Method>GET</Access-Control-Allow-Method>
+					<!-- exposed supported methods. The wildcard * can be used. Used only for REST architecture -->
+					<Access-Control-Allow-Method>POST</Access-Control-Allow-Method>
+					<Access-Control-Allow-Method>PUT</Access-Control-Allow-Method>
+					<Access-Control-Allow-Method>DELETE</Access-Control-Allow-Method>
+				</Architecture>
+				<TimeMachine value="True" />
+				<FileFormats>
+					<!-- Supported File Formats -->
+					<Format extension=".obj" mimetype="text/plain" native="False" />
+					<!-- "native" means if the format is supported without previous conversions -->
+					<Format extension=".bin" mimetype="application/octet-stream" native="False" />
+					<Format extension=".binz" mimetype="application/octet-stream" native="False" />
+					<Format extension=".ifc" mimetype="application/x-extension-ifc" native="False" />
+					<Format extension=".ifz" mimetype="application/x-extension-ifczip" native="False" />
+					<Format extension=".ifcxml" mimetype="application/x-extension-ifcxml" native="False" />
+					<Format extension=".stp" mimetype="application/x-extension-ap242" native="False" />
+					<Format extension=".step" mimetype="application/x-extension-ap242" native="False" />
+					<Format extension=".ttl" mimetype="text/plain" native="True" />
+					<Format extension=".json" mimetype="application/json" native="True" />
+					<Format extension=".dae" mimetype="model/vnd.collada+xml" native="True" />
+					<Format extension=".gltf" mimetype="application/json" native="False" />
+					<Format extension=".glb" mimetype="application/octet-stream" native="False" />
+				</FileFormats>
+				<DataProviders>
+					<CloudStorages>
+						<!-- Cloud Storages -->
+						<Storage name="AWS S3" storage-size="1024" />
+						<!-- in MBs -->
+						<Storage name="GitHub" storage-size="0" />
+						<!-- 0 means infinite -->
+					</CloudStorages>
+					<Databases>
+						<Database name="SQLServer" type="SQL" language="T-SQL" db-size="1024" endpoint="xxx.xxx.xxx.xxx" tcp-port="1433" public="False" />
+						<!-- in MBs -->
+						<Database name="MariaDB" type="SQL" language="SQL" db-size="1024" endpoint="xxx.xxx.xxx.xxx" tcp-port="3306" public="False" />
+						<Database name="PostgreSQL" type="SQL" language="SQL" db-size="1024" endpoint="xxx.xxx.xxx.xxx" tcp-port="5432" public="True" />
+						<Database name="Fuseki" type="RDF" language="SPARQL" db-size="1024" endpoint="xxx.xxx.xxx.xxx" tcp-port="3030" public="True" />
+					</Databases>
+				</DataProviders>
+				<Authentication>
+					<!-- Authentication Protocols -->
+					<Protocol name="oAuth" />
+					<Protocol name="APIKey" />
+				</Authentication>
+			</SupportedOptions>
+		</BackEnd>
+		<Timestamp>2025-05-20T14:00:00Z</Timestamp>
+	</RegistrationRequest>
+</Protocol>

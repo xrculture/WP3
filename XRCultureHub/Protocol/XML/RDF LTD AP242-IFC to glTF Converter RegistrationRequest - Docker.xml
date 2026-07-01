@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Protocol version="1.0">
+	<RegistrationRequest>
+		<ProviderID>RDF LTD</ProviderID>
+		<ServiceName>RDF LTD AP242 to glTF Converter</ServiceName>
+		<ServiceType>Converter</ServiceType>
+		<EndPoint>http://localhost:6140/Convert</EndPoint>
+		<SessionToken>%SESSION_TOKEN%</SessionToken>
+		<ContactEmail>admin@example.com</ContactEmail>
+		<BackEnd>
+			<Access-Control-Allow-Origin>https://developer.mozilla.org</Access-Control-Allow-Origin>
+			<!-- for CORS. Make sure that the repository can be accessed outside your domain, with a direct link/URL -->
+			<SupportedOptions>
+				<Architecture value="REST">
+					<!-- possible values: REST, WASM -->
+					<Access-Control-Allow-Method>GET</Access-Control-Allow-Method>
+					<!-- exposed supported methods. The wildcard * can be used. Used only for REST architecture -->
+					<Access-Control-Allow-Method>POST</Access-Control-Allow-Method>
+					<Access-Control-Allow-Method>PUT</Access-Control-Allow-Method>
+					<Access-Control-Allow-Method>DELETE</Access-Control-Allow-Method>
+				</Architecture>
+				<Conversions>
+					<Conversion>
+						<OriginFormat extension=".ifc" mimetype="application/x-extension-ifc" />
+						<DestinationFormat extension=".gltf" mimetype="model/gltf" />
+					</Conversion>
+
+					<Conversion>
+						<OriginFormat extension=".ifc" mimetype="application/x-extension-ifc" />
+						<DestinationFormat extension=".glb" mimetype="model/gltf-binary" />
+					</Conversion>
+
+					<Conversion>
+						<OriginFormat extension=".step" mimetype="application/x-extension-ap242" />
+						<DestinationFormat extension=".gltf" mimetype="model/gltf" />
+					</Conversion>
+
+					<Conversion>
+						<OriginFormat extension=".step" mimetype="application/x-extension-ap242" />
+						<DestinationFormat extension=".glb" mimetype="model/gltf-binary" />
+					</Conversion>
+
+					<Conversion>
+						<OriginFormat extension=".stp" mimetype="application/x-extension-ap242" />
+						<DestinationFormat extension=".gltf" mimetype="model/gltf" />
+					</Conversion>
+
+					<Conversion>
+						<OriginFormat extension=".stp" mimetype="application/x-extension-ap242" />
+						<DestinationFormat extension=".glb" mimetype="model/gltf-binary" />
+					</Conversion>
+				</Conversions>
+				<Authentication>
+					<!-- Authentication Protocols -->
+					<Protocol name="oAuth" />
+					<Protocol name="APIKey" />
+				</Authentication>
+			</SupportedOptions>
+		</BackEnd>
+		<Timestamp>2025-05-20T14:00:00Z</Timestamp>
+	</RegistrationRequest>
+</Protocol>

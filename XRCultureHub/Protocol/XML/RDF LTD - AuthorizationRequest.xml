@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Protocol version="1.0">
+  <AuthorizationRequest>
+      <ProviderID>RDF LTD</ProviderID>
+      <Timestamp>%TIME_STAMP%</Timestamp>
+  </AuthorizationRequest>
+</Protocol>

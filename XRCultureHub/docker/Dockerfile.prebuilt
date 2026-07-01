@@ -1,0 +1,9 @@
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+
+# Expects the Release publish output to be available
+COPY ./XRCultureHub/bin/Release/net8.0/publish/ .
+
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "XRCultureHub.dll"]

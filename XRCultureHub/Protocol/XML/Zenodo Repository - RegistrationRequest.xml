@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Protocol version="1.0">
+	<RegistrationRequest>
+		<ProviderID>Zenodo</ProviderID>
+		<ServiceName>Zenodo Repository</ServiceName>
+		<ServiceType>Repository</ServiceType>
+		<EndPoint>https://zenodo.org/api/records</EndPoint>
+		<UploadEndPoint>https://zenodo.org/api/deposit/depositions</UploadEndPoint>
+		<SessionToken>%SESSION_TOKEN%</SessionToken>
+		<BackEnd>
+			<Access-Control-Allow-Origin>https://developer.mozilla.org</Access-Control-Allow-Origin>
+			<!-- for CORS. Make sure that the repository can be accessed outside your domain, with a direct link/URL -->
+			<SupportedOptions>
+				<Architecture value="REST">
+					<Access-Control-Allow-Method>*</Access-Control-Allow-Method>
+				</Architecture>
+				<FileFormats>
+					<Format extension=".obj"    mimetype="model/obj"                   native="True" />
+					<Format extension=".bin"    mimetype="application/octet-stream"    native="True" />
+					<Format extension=".ifc"    mimetype="application/x-extension-ifc" native="True" />
+					<Format extension=".ifz"    mimetype="application/x-extension-ifczip"   native="True" />
+					<Format extension=".ifcxml" mimetype="application/x-extension-ifcxml"   native="True" />
+					<Format extension=".ttl"    mimetype="text/plain"                  native="True" />
+					<Format extension=".json"   mimetype="application/json"            native="True" />
+					<Format extension=".dae"    mimetype="model/vnd.collada+xml"       native="True" />
+					<Format extension=".glb"    mimetype="model/gltf-binary"           native="True" />
+				</FileFormats>
+				<UploadParameters>
+					<!-- Parameters required by the UI when this repository is selected for upload -->
+					<Parameter name="BucketName"  required="True"  source="user"       label="S3 Bucket Name" />
+					<Parameter name="FolderPath"  required="False" source="user"       label="Subfolder" />
+					<Parameter name="AccessKey"   required="True"  source="appsettings" label="AWS Access Key" />
+					<Parameter name="SecretKey"   required="True"  source="appsettings" label="AWS Secret Key" />
+					<Parameter name="Region"      required="True"  source="appsettings" label="AWS Region" />
+				</UploadParameters>
+			</SupportedOptions>
+		</BackEnd>
+		<Timestamp>2025-05-20T14:00:00Z</Timestamp>
+	</RegistrationRequest>
+</Protocol>
