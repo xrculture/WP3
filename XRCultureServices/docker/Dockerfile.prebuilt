@@ -1,0 +1,18 @@
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-noble
+
+WORKDIR /app
+
+COPY XRCultureServices/bin/Release/net9.0/publish/ .
+
+# Make the .so files executable
+RUN chmod +x libstep2gltf.so libifcengine.so
+
+# Register /app in the linker cache
+RUN echo "/app" > /etc/ld.so.conf.d/xrculture.conf && ldconfig
+
+ENV ASPNETCORE_URLS=http://+:8080
+
+# Force libifcengine.so to be loaded before libstep2gltf.so 
+ENV LD_PRELOAD=/app/libifcengine.so
+
+ENTRYPOINT ["dotnet", "XRCultureServices.dll"]

@@ -1,0 +1,17 @@
+services:
+  xrcultureservices:
+    image: xrcultureservices:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.prebuilt
+    ports:
+      - "6140:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+    volumes:
+      - xrculture_data:/xrculture/services
+    restart: unless-stopped
+
+volumes:
+  xrculture_data:
