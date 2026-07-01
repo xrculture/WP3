@@ -1,0 +1,15 @@
+services:
+  xrculturehub:
+    image: svilenvarbanov2019/xrculturehub:latest
+    ports:
+      - "5130:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - JwtSettings__SecretKey=your-very-long-secret-key-here-at-least-32-characters
+    volumes:
+      - xrculture_data:/xrculture/hub
+    restart: unless-stopped
+
+volumes:
+  xrculture_data:
