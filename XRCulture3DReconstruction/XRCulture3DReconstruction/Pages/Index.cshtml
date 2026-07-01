@@ -1,0 +1,286 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h5><a href="/Library" target="_blank">Library</a></h5>
+</div>
+
+<hr />
+
+<div class="text-center">
+    <div id="divExecute">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div style="width: 400px;">
+                <label for="txtGitHubFolder" style="display: block; text-align: left; margin-bottom: 4px;"><b>GitHub Folder</b></label>
+                <input id="txtGitHubFolder" type="text" style="width: 100%;" />
+                <label for="txtGitHubFolder" style="display: block; text-align: left; margin-top: 4px;"><i>Example: https://github.com/[owner]/[repository]/tree/[branch]/[folder]</i></label>
+            </div>
+            <div style="width: 400px;">
+                <label for="ddlWorkflow" style="display: block; text-align: left; margin-bottom: 4px;"><b>Workflow</b></label>
+                <select id="ddlWorkflow" style="padding: 4px 8px; width: 100%;">                    
+                </select>
+            </div>
+            <div style="width: 400px;">
+                <label for="ddlQuality" style="display: block; text-align: left; margin-bottom: 4px;"><b>Quality</b></label>
+                <select id="ddlQuality" style="padding: 4px 8px; width: 100%;">
+                    <option value="Normal">Normal (fast, but lower detail)</option>
+                    <option value="High" selected>High (balanced quality and time)</option>
+                    <option value="Ultra">Ultra (best quality, but slower)</option>
+                </select>
+            </div>
+            <button type="button" onclick="processGitHubFolder();" style="margin-top: 8px;">Process</button>
+        </div>
+    </div>
+</div>
+
+<label for="txtLog"><b>Log</b></label>
+<br />
+<textarea id="txtLog" rows="10" style="width:100%" readonly></textarea>
+<div id="resultLinks"></div>
+
+@* Anti-forgery token *@
+<form style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
+
+<script src="~/lib/signalr/signalr.min.js"></script>
+<script>
+    async function updateWorkflowsUI() {
+        try {
+            const response = await fetch('/?handler=Workflows', {
+                method: 'GET'
+            });
+
+            if (response.ok) {
+                document.getElementById('ddlWorkflow').innerHTML = '';
+                const workflows = await response.json();
+                workflows.forEach(workflow => {
+                    const option = document.createElement('option');
+                    option.value = workflow.id;
+                    option.textContent = workflow.name;
+                    document.getElementById('ddlWorkflow').appendChild(option);
+                });
+            } else {
+                console.error('Failed to fetch status:', response.status, response.statusText);
+            }
+        } catch (error) {
+            console.error('Error fetching status:', error);
+        }
+    }
+
+    async function initializeSignalRLogHubConnection() {
+        let connection = new signalR.HubConnectionBuilder()
+            .withUrl("/logHub")
+            .configureLogging(signalR.LogLevel.Information)
+            .withAutomaticReconnect({
+                nextRetryDelayInMilliseconds: retryContext => {
+                    if (retryContext.elapsedMilliseconds < 60000) {
+                        return Math.random() * 10000;
+                    } else {
+                        return null;
+                    }
+                }
+            })
+            .build();
+
+        connection.serverTimeoutInMilliseconds = 60000;
+        connection.keepAliveIntervalInMilliseconds = 15000;
+
+        connection.on("ReceiveLogMessage", function (message) {
+            const logArea = document.getElementById('txtLog');
+            logArea.value += message + '\n';
+            logArea.scrollTop = logArea.scrollHeight;
+        });
+
+        connection.onclose(async (error) => {
+            console.error('LogHub connection closed:', error);
+            // Attempt to reconnect
+            await startLogHubConnection(connection);
+        });
+
+        await startLogHubConnection(connection);
+    }
+
+    async function startLogHubConnection(connection) {
+        try {
+            await connection.start();
+            console.log("LogHub connected");
+            await connection.invoke("JoinGroup", "***SignalR-Log-Hub***");
+        } catch (err) {
+            console.error('Error starting LogHub connection:', err);
+            setTimeout(() => startLogHubConnection(connection), 5000);
+        }
+    }
+
+    async function initializeSignalRStatusHubConnection() {
+        let connection = new signalR.HubConnectionBuilder()
+            .withUrl("/statusHub")
+            .configureLogging(signalR.LogLevel.Information)
+            .withAutomaticReconnect({
+                nextRetryDelayInMilliseconds: retryContext => {
+                    if (retryContext.elapsedMilliseconds < 60000) {
+                        return Math.random() * 10000;
+                    } else {
+                        return null;
+                    }
+                }
+            })
+            .build();
+
+        connection.serverTimeoutInMilliseconds = 60000;
+        connection.keepAliveIntervalInMilliseconds = 15000;
+
+        connection.on("ReceiveStatusUpdate", function (message) {
+            let status = JSON.parse(message);
+            updateUIElements(status);
+            if (status.taskStatusUpdate) {
+                showResultLinks(status.taskStatusUpdate);
+            }
+        });
+
+        connection.onclose(async (error) => {
+            console.error('StatusHub connection closed:', error);
+            // Attempt to reconnect
+            await startStatusHubConnection(connection);
+        });
+
+        await startStatusHubConnection(connection);
+    }
+
+    async function startStatusHubConnection(connection) {
+        try {
+            await connection.start();
+            console.log("StatusHub connected");
+            await connection.invoke("JoinGroup", "***SignalR-Status-Hub***");
+        } catch (err) {
+            console.error('Error starting StatusHub connection:', err);
+            setTimeout(() => startStatusHubConnection(connection), 5000);
+        }
+    }
+
+    async function updateUI() {
+        try {
+            const response = await fetch('/?handler=Status', {
+                method: 'GET'
+            });
+
+            if (response.ok) {
+                updateUIElements(await response.json());
+            } else {
+                console.error('Failed to fetch status:', response.status, response.statusText);
+            }
+        } catch (error) {
+            console.error('Error fetching status:', error);
+        }
+    }
+
+    function updateUIElements(statusData) {
+        const executeDiv = document.getElementById('divExecute');
+
+        if (statusData.status === 'busy') {
+            executeDiv.style.opacity = '0.5';
+            const processButton = executeDiv.querySelector('button');
+            if (processButton) {
+                processButton.disabled = true;
+                processButton.textContent = 'Processing...';
+            }
+            const logArea = document.getElementById('txtLog');
+            logArea.value = `Processing...\n`;
+        } else {
+            executeDiv.style.opacity = '1';
+            const processButton = executeDiv.querySelector('button');
+            if (processButton) {
+                processButton.disabled = false;
+                processButton.textContent = 'Process';
+            }
+        }
+    }
+
+    function showResultLinks(taskStatusUpdate) {
+        if (taskStatusUpdate.Status === "Completed") {
+            const resultDiv = document.getElementById('resultLinks');
+            const cacheBuster = Date.now();
+            const viewLink = `${taskStatusUpdate.ViewUrl}&v=${cacheBuster}`;
+            const downloadLink = `${taskStatusUpdate.DownloadUrl}&v=${cacheBuster}`;
+            resultDiv.innerHTML = `
+                <h5>
+                    <a href="${viewLink}" target="_blank">View</a>
+                </h5>
+                <h5>
+                    <a href="${downloadLink}" target="_blank">Download</a>
+                </h5>
+            `;
+        }
+    }
+
+    async function processGitHubFolder() {
+        try {
+            const gitHubFolder = document.getElementById('txtGitHubFolder').value;
+            if (!gitHubFolder) {
+                alert('Please enter a GitHub folder URL.');
+                return;
+            }
+
+            const match = gitHubFolder.match(/^https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/tree\/([^\/]+)\/([^\/]+)$/);
+            if (!match) {
+                alert('Please enter a valid GitHub folder URL.');
+                return;
+            }
+
+            const resultDiv = document.getElementById('resultLinks');
+            resultDiv.innerHTML = '';
+
+            const owner = match[1];
+            const repo = match[2];
+            const branch = match[3];
+            const folder = match[4];
+            const workflow = document.getElementById('ddlWorkflow').value;
+            const quality = document.getElementById('ddlQuality').value;
+
+            // Clear log
+            document.getElementById('txtLog').value = '';
+
+            // Requires @Html.AntiForgeryToken()
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (!tokenInput) {
+                console.error('Anti-forgery token not found.');
+                return;
+            }
+
+            const response = await fetch('/?handler=ProcessGitHubFolder', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': tokenInput.value
+                },
+                body: JSON.stringify({
+                    "workflow": workflow,
+                    "owner": owner,
+                    "repo": repo,
+                    "branch": branch,
+                    "folder": folder,
+                    "options": {
+                        "quality": quality
+                    }
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                document.getElementById('txtLog').value += `${new Date().toLocaleTimeString()} - ${result.message}\n`;
+            } else {
+                document.getElementById('txtLog').value += `Error: ${response.statusText}\n`;
+            }
+        } catch (error) {
+            document.getElementById('txtLog').value += `Error: ${error.message}\n`;
+        }
+    }
+
+    updateWorkflowsUI();
+    initializeSignalRLogHubConnection();
+    initializeSignalRStatusHubConnection();
+    updateUI();
+</script>

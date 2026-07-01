@@ -1,0 +1,131 @@
+﻿@page
+@model XRCulture3DReconstruction.Pages.LibraryModel
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Library";
+}
+
+<h1 class="display-4">Library</h1>
+
+@{
+    foreach (var modelInfo in Model.GetModelInfos())
+    {
+        var viewUrl = modelInfo.ViewUrl;
+        if (modelInfo.View.ShowSettingsPanel != null)
+        {
+            viewUrl += "&showSettingsPanel=" + (modelInfo.View.ShowSettingsPanel.Value ? "true" : "false");
+        }
+
+        if (modelInfo.View.ShowFaces != null)
+        {
+            viewUrl += "&showFaces=" + (modelInfo.View.ShowFaces.Value ? "true" : "false");
+        }
+
+        if (modelInfo.View.ShowWireframes != null)
+        {
+            viewUrl += "&showWireframes=" + (modelInfo.View.ShowWireframes.Value ? "true" : "false");
+        }
+
+        if (modelInfo.View.ShowLines != null)
+        {
+            viewUrl += "&showLines=" + (modelInfo.View.ShowLines.Value ? "true" : "false");
+        }
+
+        if (modelInfo.View.ShowPoints != null)
+        {
+            viewUrl += "&showPoints=" + (modelInfo.View.ShowPoints.Value ? "true" : "false");
+        }
+
+        if (modelInfo.View.ShowModelCS != null)
+        {
+            viewUrl += "&showModelCS=" + (modelInfo.View.ShowModelCS.Value ? "true" : "false");
+        }
+
+        if (modelInfo.View.ShowWorldCS != null)
+        {
+            viewUrl += "&showWorldCS=" + (modelInfo.View.ShowWorldCS.Value ? "true" : "false");
+        }
+
+        if (modelInfo.View.ShowNavigator != null)
+        {
+            viewUrl += "&showNavigator=" + (modelInfo.View.ShowNavigator.Value ? "true" : "false");
+        }
+
+        if (!string.IsNullOrEmpty(modelInfo.View.BackgroundColor))
+        {
+            viewUrl += "&backgroundColor=" + modelInfo.View.BackgroundColor;
+        }
+
+        if (!string.IsNullOrEmpty(modelInfo.View.SelectionColor))
+        {
+            viewUrl += "&selectionColor=" + modelInfo.View.SelectionColor;
+        }
+
+        if (!string.IsNullOrEmpty(modelInfo.View.Rotation))
+        {
+            viewUrl += "&rotation=" + modelInfo.View.Rotation;
+        }
+
+        if (!string.IsNullOrEmpty(modelInfo.View.EyeVector))
+        {
+            viewUrl += "&eyeVector=" + modelInfo.View.EyeVector;
+        }
+
+        if (!string.IsNullOrEmpty(modelInfo.View.TargetVector))
+        {
+            viewUrl += "&targetVector=" + modelInfo.View.TargetVector;
+        }
+
+        if (!string.IsNullOrEmpty(modelInfo.View.UpVector))
+        {
+            viewUrl += "&upVector=" + modelInfo.View.UpVector;
+        }
+
+        <div class="card mb-3">
+            <h5 class="card-header">@modelInfo.Input</h5>
+            <div class="card-body">
+                <p class="card-text"><strong>Id:</strong> @modelInfo.Id</p>
+                <p class="card-text"><strong>Workflow:</strong> @modelInfo.WorkflowName</p>
+                @if (modelInfo.Parameters.Count > 0)
+                {
+                    <p class="card-text"><strong>Parameters:</strong></p>
+                    <ul>
+                        @foreach (var param in modelInfo.Parameters)
+                        {
+                            <li>@param.Key: @param.Value</li>
+                        }
+                    </ul>
+                }
+                <p class="card-text"><strong>Created:</strong> @modelInfo.TimeStamp</p>
+                @if (!string.IsNullOrEmpty(viewUrl))
+                {
+                    <a href="@viewUrl" target="_blank" class="btn btn-secondary">View</a>
+                }
+                @if (!string.IsNullOrEmpty(modelInfo.DownloadUrl))
+                {
+                    <a href="@modelInfo.DownloadUrl" target="_blank" class="btn btn-secondary">Download</a>
+                }
+                @if (!string.IsNullOrEmpty(modelInfo.LogUrl))
+                {
+                    <a href="@modelInfo.LogUrl" target="_blank" class="btn btn-secondary">Log</a>
+                }
+            </div>
+        </div>
+    }
+}
+
+@section Scripts {
+    <script src="~/lib/signalr/signalr.min.js"></script>
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/hubs/library")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("libraryChanged", () => {
+            window.location.reload();
+        });
+
+        connection.start().catch(err => console.error("SignalR connection error:", err));
+    </script>
+}

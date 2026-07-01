@@ -1,0 +1,49 @@
+﻿@page
+@model XRCulture3DReconstruction.Pages.ViewerModel
+@{
+    ViewData["Title"] = "Viewer";
+    Layout = "_ViewerLayout";
+}
+
+<iframe src="~/viewer/viewer.html?model=@Model.Model&showSettingsPanel=@Model.ShowSettingsPanel&showFaces=@Model.ShowFaces&showWireframes=@Model.ShowWireframes&showLines=@Model.ShowLines&showPoints=@Model.ShowPoints&showModelCS=@Model.ShowModelCS&showWorldCS=@Model.ShowWorldCS&showNavigator=@Model.ShowNavigator&backgroundColor=@Model.BackgroundColor&selectionColor=@Model.SelectionColor&rotation=@Model.Rotation&eyeVector=@Model.EyeVector&targetVector=@Model.TargetVector&upVector=@Model.UpVector" style="width: 100%; height: 100vh; border: none;"></iframe>
+
+@* Anti-forgery token *@
+<form style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
+
+<script>
+    async function saveModelView(data) {
+        try {
+            // Requires @Html.AntiForgeryToken()
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (!tokenInput) {
+                console.error('Anti-forgery token not found.');
+                return;
+            }
+
+            const response = await fetch('/Library?handler=SaveModelView', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': tokenInput.value
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Model view saved successfully:', result);
+            } else {
+                console.error(`Error: ${response.statusText}`);
+            }
+        } catch (error) {
+            console.error(`Error: ${error.message}\n`);
+        }
+    }
+
+    window.onmessage = async function (e) {
+        console.log('Received message:', e.data);
+        await saveModelView(e.data);
+    }
+</script>

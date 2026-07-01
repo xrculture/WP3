@@ -1,0 +1,87 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="wwwroot\viewer\assets\**" />
+    <Compile Remove="wwwroot\viewer\css\**" />
+    <Compile Remove="wwwroot\viewer\custom-js\**" />
+    <Compile Remove="wwwroot\viewer\favicon\**" />
+    <Compile Remove="wwwroot\viewer\fonts\**" />
+    <Compile Remove="wwwroot\viewer\iscroll\**" />
+    <Compile Remove="wwwroot\viewer\jquery-ui-1.11.4.custom\**" />
+    <Compile Remove="wwwroot\viewer\js\**" />
+    <Compile Remove="wwwroot\viewer\less\**" />
+    <Compile Remove="wwwroot\viewer\resources\**" />
+    <Compile Remove="wwwroot\viewer\shader\**" />
+    <Compile Remove="wwwroot\viewer\snap\**" />
+    <Content Remove="wwwroot\viewer\assets\**" />
+    <Content Remove="wwwroot\viewer\css\**" />
+    <Content Remove="wwwroot\viewer\custom-js\**" />
+    <Content Remove="wwwroot\viewer\favicon\**" />
+    <Content Remove="wwwroot\viewer\fonts\**" />
+    <Content Remove="wwwroot\viewer\iscroll\**" />
+    <Content Remove="wwwroot\viewer\jquery-ui-1.11.4.custom\**" />
+    <Content Remove="wwwroot\viewer\js\**" />
+    <Content Remove="wwwroot\viewer\less\**" />
+    <Content Remove="wwwroot\viewer\resources\**" />
+    <Content Remove="wwwroot\viewer\shader\**" />
+    <Content Remove="wwwroot\viewer\snap\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\assets\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\css\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\custom-js\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\favicon\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\fonts\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\iscroll\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\jquery-ui-1.11.4.custom\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\js\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\less\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\resources\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\shader\**" />
+    <EmbeddedResource Remove="wwwroot\viewer\snap\**" />
+    <None Remove="wwwroot\viewer\assets\**" />
+    <None Remove="wwwroot\viewer\css\**" />
+    <None Remove="wwwroot\viewer\custom-js\**" />
+    <None Remove="wwwroot\viewer\favicon\**" />
+    <None Remove="wwwroot\viewer\fonts\**" />
+    <None Remove="wwwroot\viewer\iscroll\**" />
+    <None Remove="wwwroot\viewer\jquery-ui-1.11.4.custom\**" />
+    <None Remove="wwwroot\viewer\js\**" />
+    <None Remove="wwwroot\viewer\less\**" />
+    <None Remove="wwwroot\viewer\resources\**" />
+    <None Remove="wwwroot\viewer\shader\**" />
+    <None Remove="wwwroot\viewer\snap\**" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <None Include="wwwroot\viewer\emifcengine.data" />
+    <None Include="wwwroot\viewer\emifcengine.js" />
+    <None Include="wwwroot\viewer\emifcengine.wasm" />
+    <None Include="wwwroot\viewer\emifcengine.wasm.map" />
+    <None Include="wwwroot\viewer\viewer.html" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <Content Update="wwwroot\viewer\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+	  <Content Update="wwwroot\data\**">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Core" Version="1.6.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication" Version="2.3.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="8.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.9" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>
