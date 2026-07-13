@@ -120,6 +120,27 @@ export function setArrowHelperHighlight(arrow: ArrowHelper | null | undefined, h
 }
 
 
+const STICK_DEADZONE = 0.15;
+
+/**
+ * Read the analog thumbstick axes off a controller's gamepad, with a deadzone applied.
+ * Follows the "xr-standard" gamepad mapping, where axes[2]/[3] are the thumbstick and
+ * axes[0]/[1] are the touchpad; falls back to axes[0]/[1] for controllers that only
+ * expose a touchpad.
+ */
+export function getThumbstickAxes(state: XRControllerState | null | undefined): { x: number; y: number } {
+    const axes = state?.inputSource.gamepad?.axes;
+    if (!axes || axes.length === 0) return { x: 0, y: 0 };
+
+    const x = axes.length >= 4 ? axes[2] : axes[0] ?? 0;
+    const y = axes.length >= 4 ? axes[3] : axes[1] ?? 0;
+
+    return {
+        x: Math.abs(x) > STICK_DEADZONE ? x : 0,
+        y: Math.abs(y) > STICK_DEADZONE ? y : 0,
+    };
+}
+
 export type PoiHit = {
     index: number;
     distance: number;

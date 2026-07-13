@@ -11,7 +11,7 @@ import type { XRHandState } from "@pmndrs/xr";
 import { useControllers, useHands } from "../hooks";
 import type { ModelMetadata } from "../hooks/useModel";
 
-import { getTransformOffsetsFromXR, performRaycast, evaluatePose, updateArrowHelper, setArrowHelperHighlight, raycastPoi, xrMatrixToMatrix4, xrOrientationToQuaternion, xrPositionToVector3 } from "../utils";
+import { getTransformOffsetsFromXR, performRaycast, evaluatePose, updateArrowHelper, setArrowHelperHighlight, raycastPoi, xrMatrixToMatrix4, xrOrientationToQuaternion, xrPositionToVector3, getThumbstickAxes } from "../utils";
 
 import Poi from "./Poi";
 
@@ -96,6 +96,13 @@ import Poi from "./Poi";
 //     lockPositionOffset: Vector3 | null | undefined;
 //     lockRotationOffset: Quaternion | null | undefined;
 // };
+
+// Analog-stick fine control while single-hand dragging: left/right yaws the model
+// around its own local vertical axis, forward/back pushes it away from / pulls it
+// towards the user.
+const STICK_ROTATION_SPEED = 1.5; // radians / second at full deflection
+const STICK_TRANSLATION_SPEED = 1; // meters / second at full deflection
+const LOCAL_UP_AXIS = new Vector3(0, 1, 0);
 
 type XRStateTransform = {
     state: XRControllerState | XRHandState | null | undefined;
@@ -202,7 +209,7 @@ export default function Model({ model, metadata }: Props) {
 
     }, [session]);
 
-    useFrame(({ raycaster }, _, frame) => {
+    useFrame(({ raycaster }, delta, frame) => {
         if (!model || !rootRef.current || !session || (!leftController && !rightController && !leftHand && !rightHand)) return;
 
         updateArrowHelper(leftControllerArrowHelperRef.current, leftController, originReferenceSpace, frame);
@@ -395,6 +402,29 @@ export default function Model({ model, metadata }: Props) {
                     if (offsets) {
                         lockPositionOffsetRef.current = offsets.positionOffset;
                         lockRotationOffsetRef.current = offsets.rotationOffset;
+                    }
+                }
+
+                // Analog stick fine control - only from the controller that is actively
+                // grabbing (hands have no gamepad, so pinch-drags are unaffected).
+                const grabbingController =
+                    firstInputSource.state === leftController ? leftController :
+                    firstInputSource.state === rightController ? rightController :
+                    null;
+
+                if (grabbingController && lockPositionOffsetRef.current && lockRotationOffsetRef.current) {
+                    const { x: stickX, y: stickY } = getThumbstickAxes(grabbingController);
+
+                    if (stickX !== 0) {
+                        const yaw = new Quaternion().setFromAxisAngle(LOCAL_UP_AXIS, -stickX * STICK_ROTATION_SPEED * delta);
+                        lockRotationOffsetRef.current.multiply(yaw);
+                    }
+
+                    if (stickY !== 0) {
+                        // Offset is expressed in controller-local space, where -Z points
+                        // forward (away from the user), so nudging it there moves the
+                        // model further away / closer without touching the grab itself.
+                        lockPositionOffsetRef.current.z += stickY * STICK_TRANSLATION_SPEED * delta;
                     }
                 }
 

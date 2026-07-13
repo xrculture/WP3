@@ -3,6 +3,9 @@ import cors from "cors";
 import path from "path";
 import fs from "fs";
 import https from "https";
+import dns from "dns/promises";
+import net from "net";
+import { Readable } from "stream";
 import { randomUUID } from "crypto";
 import { parseStringPromise, Builder } from "xml2js";
 
@@ -212,6 +215,113 @@ app.post("/api/viewer/load", async (req: Request, res: Response) => {
     sendResponse(400, 400, sessionToken, "No valid Source found (UrlSource.Url or LocalSource.FileContent required)");
 });
 
+
+// ─── GET /api/proxy — server-side fetch so the browser never makes the ────────
+// cross-origin request itself (sidesteps CORS, since CORS is a browser-only
+// restriction). Guards against SSRF by rejecting requests aimed at private,
+// loopback, or link-local addresses.
+
+const PROXY_TIMEOUT_MS = 30_000;
+const PROXY_MAX_BYTES = 500 * 1024 * 1024; // 500MB, generous for GLB/GLTF/FBX assets
+
+function isBlockedIp(ip: string): boolean {
+    if (net.isIPv4(ip)) {
+        const [a, b] = ip.split(".").map(Number);
+        return (
+            a === 10 ||
+            a === 127 ||
+            a === 0 ||
+            (a === 169 && b === 254) ||
+            (a === 172 && b >= 16 && b <= 31) ||
+            (a === 192 && b === 168) ||
+            (a === 100 && b >= 64 && b <= 127) // CGNAT
+        );
+    }
+    if (net.isIPv6(ip)) {
+        const lower = ip.toLowerCase();
+        if (lower === "::1" || lower === "::") return true;
+        if (lower.startsWith("fe80:")) return true; // link-local
+        if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // unique local
+        if (lower.startsWith("::ffff:")) {
+            const v4 = lower.split(":").pop()!;
+            if (net.isIPv4(v4)) return isBlockedIp(v4);
+        }
+        return false;
+    }
+    return true; // unrecognized format — fail closed
+}
+
+app.get("/api/proxy", async (req: Request, res: Response) => {
+    const target = req.query.url;
+    if (typeof target !== "string" || !target) {
+        res.status(400).json({ error: "Missing 'url' query parameter" });
+        return;
+    }
+
+    let parsed: URL;
+    try {
+        parsed = new URL(target);
+    } catch {
+        res.status(400).json({ error: "Invalid URL" });
+        return;
+    }
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        res.status(400).json({ error: "Only http/https URLs are supported" });
+        return;
+    }
+
+    try {
+        const hostIp = net.isIP(parsed.hostname) ? parsed.hostname : (await dns.lookup(parsed.hostname)).address;
+        if (isBlockedIp(hostIp)) {
+            res.status(400).json({ error: "Target host is not allowed" });
+            return;
+        }
+    } catch {
+        res.status(400).json({ error: "Could not resolve host" });
+        return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+    req.on("close", () => controller.abort());
+
+    try {
+        const upstream = await fetch(parsed.toString(), { signal: controller.signal });
+
+        if (!upstream.ok || !upstream.body) {
+            res.status(502).json({ error: `Upstream returned ${upstream.status}` });
+            return;
+        }
+
+        const contentLength = upstream.headers.get("content-length");
+        if (contentLength && Number(contentLength) > PROXY_MAX_BYTES) {
+            res.status(502).json({ error: "Upstream resource is too large" });
+            return;
+        }
+
+        const contentType = upstream.headers.get("content-type");
+        if (contentType) res.set("Content-Type", contentType);
+        if (contentLength) res.set("Content-Length", contentLength);
+
+        let bytesReceived = 0;
+        const upstreamStream = Readable.fromWeb(upstream.body as import("stream/web").ReadableStream);
+        upstreamStream.on("data", (chunk: Buffer) => {
+            bytesReceived += chunk.length;
+            if (bytesReceived > PROXY_MAX_BYTES) {
+                upstreamStream.destroy();
+                controller.abort();
+                if (!res.headersSent) res.status(502);
+                res.end();
+            }
+        });
+        upstreamStream.pipe(res);
+    } catch {
+        if (!res.headersSent) res.status(502).json({ error: "Failed to fetch upstream resource" });
+    } finally {
+        clearTimeout(timeout);
+    }
+});
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 
