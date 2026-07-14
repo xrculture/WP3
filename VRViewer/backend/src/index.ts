@@ -45,6 +45,12 @@ function str(node: unknown): string {
     return String(node);
 }
 
+// Extract an XML attribute from a potentially wrapped xml2js node (see `str` above)
+function attr(node: unknown, name: string): string | undefined {
+    if (!node || typeof node !== "object") return undefined;
+    return (node as { $?: Record<string, string> }).$?.[name];
+}
+
 function sceneValue(node: ParsedSceneNode): string | undefined {
     if (!node) return undefined;
     if (typeof node === "string") return node || undefined;
@@ -177,20 +183,11 @@ app.post("/api/viewer/load", async (req: Request, res: Response) => {
     const host  = req.get("host") ?? `localhost:${port}`;
     const baseUrl = `${proto}://${host}`;
 
-    // ── Case 1: UrlSource ─────────────────────────────────────────────────────
-    const urlSource = (source.UrlSource ?? {}) as Record<string, unknown>;
-    const modelUrl = isJson ? (urlSource.Url as string || "") : str(urlSource.Url);
-    if (modelUrl) {
-        params.set("path", modelUrl);
-        const endpoint = `${baseUrl}?${params.toString()}`;
-        sendResponse(200, 200, sessionToken, "Ready", endpoint);
-        return;
-    }
-
-    // ── Case 2: LocalSource (Base64) ─────────────────────────────────────────
-    const localSource = (source.LocalSource ?? {}) as Record<string, unknown>;
-    const base64 = isJson ? ((localSource.FileContent as string) || "").trim() : str(localSource.FileContent).trim();
-    const fileExtRaw = isJson ? ((localSource.FileExtension as string) || ".glb") : (str(localSource.FileExtension) || ".glb");
+    // ── Case 1: LocalSource (Base64) 
+    const localSourceNode = source.LocalSource;
+    const localSource = (localSourceNode ?? {}) as Record<string, unknown>;
+    const base64 = isJson ? ((localSource.FileContent as string) || "").trim() : str(localSourceNode).trim();
+    const fileExtRaw = isJson ? ((localSource.FileExtension as string) || ".glb") : (attr(localSourceNode, "extension") || ".glb");
     const ext = fileExtRaw.startsWith(".") ? fileExtRaw : `.${fileExtRaw}`;
 
     if (base64) {
@@ -208,7 +205,18 @@ app.post("/api/viewer/load", async (req: Request, res: Response) => {
 
         params.set("path", `/models/${modelFile}`);
         const endpoint = `${baseUrl}?${params.toString()}`;
-        sendResponse(200, 200, sessionToken, "Ready", endpoint, base64.length * 0.75);
+        const loadedContentKb = (base64.length * 0.75) / 1024;
+        sendResponse(200, 200, sessionToken, "Ready", endpoint, loadedContentKb);
+        return;
+    }
+
+    // ── Case 2: UrlSource ─────────────────────────────────────────────────────
+    const urlSource = (source.UrlSource ?? {}) as Record<string, unknown>;
+    const modelUrl = isJson ? (urlSource.Url as string || "") : str(urlSource.Url);
+    if (modelUrl) {
+        params.set("path", modelUrl);
+        const endpoint = `${baseUrl}?${params.toString()}`;
+        sendResponse(200, 200, sessionToken, "Ready", endpoint);
         return;
     }
 

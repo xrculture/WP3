@@ -3,7 +3,7 @@
     "ServiceID": "test-service-001",
     "SessionToken": "e3be7cc2-3a7e-45e6-9a88-bd364e6de740",
     "Source": {
-        "UrlSource": {
+        "LocalSource": {
             "FileName": "Duck",
             "FileExtension": ".glb",
             "FileDimension": 120484,
