@@ -51,7 +51,7 @@ namespace XRCulture3DReconstruction.Workflows
                 await LogMessage("*** Creating Density Point Cloud started...");
 
                 var exePath = Configuration[$"{toolPaths}:OpenMVS"] + (isLinuxPlatform ? "/DensifyPointCloud" : @"\DensifyPointCloud.exe");
-                var args = $"--working-folder {inputDir} --input-file {inputDir}{sep}model.mvs --resolution-level 0 --min-resolution 640 --max-resolution 3200 --number-views 8 --number-views-fuse 6 --estimate-colors 1 --estimate-normals 1";
+                var args = $"--working-folder {inputDir} --input-file {inputDir}{sep}model.mvs";
 
                 var exitCode = ExecuteProcess(exePath, args);
                 if (exitCode != 0)
@@ -67,7 +67,7 @@ namespace XRCulture3DReconstruction.Workflows
                 await LogMessage("*** Reconstructing Mesh started...");
 
                 var exePath = Configuration[$"{toolPaths}:OpenMVS"] + (isLinuxPlatform ? "/ReconstructMesh" : @"\ReconstructMesh.exe");
-                var args = $"--working-folder {inputDir} --archive-type 2 --input-file {inputDir}{sep}model_dense.mvs --thickness-factor 1 --quality-factor 1 --decimate 0.5";
+                var args = $"--working-folder {inputDir} --archive-type 2 --input-file {inputDir}{sep}model_dense.mvs";
 
                 var exitCode = ExecuteProcess(exePath, args);
                 if (exitCode != 0)
@@ -85,7 +85,7 @@ namespace XRCulture3DReconstruction.Workflows
                     await LogMessage("*** Refining Mesh started...");
 
                     var exePath = Configuration[$"{toolPaths}:OpenMVS"] + (isLinuxPlatform ? "/RefineMesh" : @"\RefineMesh.exe");
-                    var args = $"--working-folder {inputDir} --resolution-level 0 --input-file {inputDir}{sep}model_dense_mesh.mvs";
+                    var args = $"--working-folder {inputDir} --resolution-level 1 --input-file {inputDir}{sep}model_dense_mesh.mvs";
 
                     var exitCode = ExecuteProcess(exePath, args);
                     if (exitCode != 0)
@@ -101,7 +101,7 @@ namespace XRCulture3DReconstruction.Workflows
                     await LogMessage("*** Texturing Mesh started...");
 
                     var exePath = Configuration[$"{toolPaths}:OpenMVS"] + (isLinuxPlatform ? "/TextureMesh" : @"\TextureMesh.exe");
-                    var args = $"--working-folder {inputDir} --export-type=obj --output-file {inputDir}{sep}obj{sep}model.obj --input-file {inputDir}{sep}model_dense_mesh_refine.mvs --resolution-level 0 --min-resolution 1024 --outlier-threshold 0.6 --cost-smoothness-ratio 0.1 --patch-packing-heuristic 3";
+                    var args = $"--working-folder {inputDir} --export-type=obj --output-file {inputDir}{sep}obj{sep}model.obj --input-file {inputDir}{sep}model_dense_mesh_refine.mvs";
 
                     var exitCode = ExecuteProcess(exePath, args);
                     if (exitCode != 0)
@@ -119,7 +119,7 @@ namespace XRCulture3DReconstruction.Workflows
                     await LogMessage("*** Texturing Mesh started...");
 
                     var exePath = Configuration[$"{toolPaths}:OpenMVS"] + (isLinuxPlatform ? "/TextureMesh" : @"\TextureMesh.exe");
-                    var args = $"--working-folder {inputDir} --export-type=obj --output-file {inputDir}{sep}obj{sep}model.obj --input-file {inputDir}{sep}model_dense_mesh.mvs --resolution-level 0 --min-resolution 1024 --outlier-threshold 0.6 --cost-smoothness-ratio 0.1 --patch-packing-heuristic 3";
+                    var args = $"--working-folder {inputDir} --export-type=obj --output-file {inputDir}{sep}obj{sep}model.obj --input-file {inputDir}{sep}model_dense_mesh.mvs";
 
                     var exitCode = ExecuteProcess(exePath, args);
                     if (exitCode != 0)

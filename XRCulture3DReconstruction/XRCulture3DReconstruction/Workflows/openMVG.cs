@@ -31,7 +31,7 @@ namespace XRCulture3DReconstruction.Workflows
                 await LogMessage("*** Intrinsics analysis started...");
 
                 var exePath = Configuration[$"{toolPaths}:OpenMVG"] + (isLinuxPlatform ? "/openMVG_main_SfMInit_ImageListing" : @"\openMVG_main_SfMInit_ImageListing.exe");
-                var args = $"--imageDirectory {inputDir}{sep}images --outputDirectory {inputDir}{sep}matches --camera_model 3 --group_camera_model 1 -f 1920";
+                var args = $"--imageDirectory {inputDir}{sep}images --outputDirectory {inputDir}{sep}matches -f 1920";
 
                 var exitCode = ExecuteProcess(exePath, args);
                 if (exitCode != 0)
@@ -47,7 +47,7 @@ namespace XRCulture3DReconstruction.Workflows
                 await LogMessage("*** Compute features started...");
 
                 var exePath = Configuration[$"{toolPaths}:OpenMVG"] + (isLinuxPlatform ? "/openMVG_main_ComputeFeatures" : @"\openMVG_main_ComputeFeatures.exe");
-                var args = $"--input_file {inputDir}{sep}matches{sep}sfm_data.json --outdir {inputDir}{sep}matches --describerMethod \"SIFT\" --describerPreset \"{quality.ToUpper()}\" --numThreads 0";
+                var args = $"--input_file {inputDir}{sep}matches{sep}sfm_data.json --outdir {inputDir}{sep}matches --describerMethod \"AKAZE_FLOAT\" --describerPreset \"{quality.ToUpper()}\"";
                 var exitCode = ExecuteProcess(exePath, args);
                 if (exitCode != 0)
                 {
@@ -77,7 +77,7 @@ namespace XRCulture3DReconstruction.Workflows
                 await LogMessage("*** Compute matches started...");
 
                 var exePath = Configuration[$"{toolPaths}:OpenMVG"] + (isLinuxPlatform ? "/openMVG_main_ComputeMatches" : @"\openMVG_main_ComputeMatches.exe");
-                var args = $"--input_file {inputDir}{sep}matches{sep}sfm_data.json --pair_list {inputDir}{sep}matches{sep}pairs.bin --output_file {inputDir}{sep}matches{sep}matches.putative.bin --nearest_matching_method AUTO --ratio 0.8";
+                var args = $"--input_file {inputDir}{sep}matches{sep}sfm_data.json --pair_list {inputDir}{sep}matches{sep}pairs.bin --output_file {inputDir}{sep}matches{sep}matches.putative.bin";
                 var exitCode = ExecuteProcess(exePath, args);
                 if (exitCode != 0)
                 {
@@ -92,7 +92,7 @@ namespace XRCulture3DReconstruction.Workflows
                 await LogMessage("*** Filter matches (INCREMENTAL) started...");
 
                 var exePath = Configuration[$"{toolPaths}:OpenMVG"] + (isLinuxPlatform ? "/openMVG_main_GeometricFilter" : @"\openMVG_main_GeometricFilter.exe");
-                var args = $"--input_file {inputDir}{sep}matches{sep}sfm_data.json --matches {inputDir}{sep}matches{sep}matches.putative.bin -g f --output_file {inputDir}{sep}matches{sep}matches.f.bin --max_iteration 2048";
+                var args = $"--input_file {inputDir}{sep}matches{sep}sfm_data.json --matches {inputDir}{sep}matches{sep}matches.putative.bin -g f --output_file {inputDir}{sep}matches{sep}matches.f.bin";
                 var exitCode = ExecuteProcess(exePath, args);
                 if (exitCode != 0)
                 {
@@ -107,7 +107,7 @@ namespace XRCulture3DReconstruction.Workflows
                 await LogMessage("*** Reconstruction (INCREMENTAL) started...");
 
                 var exePath = Configuration[$"{toolPaths}:OpenMVG"] + (isLinuxPlatform ? "/openMVG_main_SfM" : @"\openMVG_main_SfM.exe");
-                var args = $"--sfm_engine \"INCREMENTAL\" --input_file {inputDir}{sep}matches{sep}sfm_data.json --match_dir {inputDir}{sep}matches --output_dir {inputDir}{sep}reconstruction --triangulation_method 0";
+                var args = $"--sfm_engine \"INCREMENTAL\" --input_file {inputDir}{sep}matches{sep}sfm_data.json --match_dir {inputDir}{sep}matches --output_dir {inputDir}{sep}reconstruction";
                 var exitCode = ExecuteProcess(exePath, args);
                 if (exitCode != 0)
                 {
@@ -125,7 +125,7 @@ namespace XRCulture3DReconstruction.Workflows
                 var args = $"--input_file {inputDir}{sep}reconstruction{sep}sfm_data.bin --match_dir {inputDir}{sep}matches --output_file {inputDir}{sep}reconstruction{sep}robust.bin --match_file {inputDir}{sep}matches{sep}matches.f.bin";
                 var exitCode = ExecuteProcess(exePath, args);
                 if (exitCode != 0)
-            {
+                {
                     await LogMessage($"Process failed with exit code {exitCode}.", true);
                     throw new Exception($"openMVG_main_ComputeStructureFromKnownPoses failed with exit code {exitCode}.");
                 }
