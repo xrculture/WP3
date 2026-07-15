@@ -8,7 +8,8 @@ export {
     raycastPoi,
     xrMatrixToMatrix4,
     xrPositionToVector3,
-    xrOrientationToQuaternion
+    xrOrientationToQuaternion,
+    getThumbstickAxes
 } from "./methods";
 export type { RaycastResult } from "./methods";
 export type { PoiHit } from "./methods";

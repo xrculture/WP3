@@ -1,4 +1,4 @@
-import { Group, type Object3DEventMap } from "three";
+import { Group, LoadingManager, type Object3DEventMap } from "three";
 
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MTLLoader } from "three/addons/loaders/MTLLoader.js";
@@ -45,6 +45,23 @@ export default function useModel({ path }: Props) {
 
     function normalizePath(value: string): string {
         return (value ?? "").trim();
+    }
+
+    // Cross-origin model URLs are often blocked by the remote host's CORS policy.
+    // Route them through our own backend, which fetches them server-side (not
+    // subject to browser CORS) and streams the bytes back same-origin.
+    function toProxiedUrl(value: string): string {
+        if (!value || value.startsWith("data:") || value.startsWith("blob:")) return value;
+
+        try {
+            const parsed = new URL(value, window.location.href);
+            if (parsed.origin === window.location.origin) return value;
+            if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return value;
+
+            return `/api/proxy?url=${encodeURIComponent(parsed.href)}`;
+        } catch {
+            return value;
+        }
     }
 
     function extractExtension(value: string): string {
@@ -97,8 +114,11 @@ export default function useModel({ path }: Props) {
 
                 let downloadedModel: Group<Object3DEventMap>
 
+                const manager = new LoadingManager();
+                manager.setURLModifier(toProxiedUrl);
+
                 if (extension === ".gltf" || extension === ".glb") {
-                    const loader = new GLTFLoader();
+                    const loader = new GLTFLoader(manager);
                     const gltf = await loader.loadAsync(normalizedPath, onProgress);
                     downloadedModel = gltf.scene;
 
@@ -123,15 +143,15 @@ export default function useModel({ path }: Props) {
                         pois,
                     });
                 } else if (extension === ".fbx") {
-                    const loader = new FBXLoader();
+                    const loader = new FBXLoader(manager);
                     downloadedModel = await loader.loadAsync(normalizedPath, onProgress);
                 } else if (extension === ".obj") {
                     const mtlPath = normalizedPath.replace(/\.obj(?=$|[?#])/i, ".mtl");
-                    const objLoader = new OBJLoader();
+                    const objLoader = new OBJLoader(manager);
 
                     // Try to load materials - gracefully skip if .mtl doesn't exist
                     try {
-                        const mtlLoader = new MTLLoader();
+                        const mtlLoader = new MTLLoader(manager);
 
                         const materials = await mtlLoader.loadAsync(mtlPath);
                         materials.preload();

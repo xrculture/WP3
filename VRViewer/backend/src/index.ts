@@ -3,6 +3,9 @@ import cors from "cors";
 import path from "path";
 import fs from "fs";
 import https from "https";
+import dns from "dns/promises";
+import net from "net";
+import { Readable } from "stream";
 import { randomUUID } from "crypto";
 import { parseStringPromise, Builder } from "xml2js";
 
@@ -40,6 +43,12 @@ function str(node: unknown): string {
     if (typeof node === "string") return node;
     if (typeof node === "object" && "_" in (node as object)) return (node as { _: string })._ ?? "";
     return String(node);
+}
+
+// Extract an XML attribute from a potentially wrapped xml2js node (see `str` above)
+function attr(node: unknown, name: string): string | undefined {
+    if (!node || typeof node !== "object") return undefined;
+    return (node as { $?: Record<string, string> }).$?.[name];
 }
 
 function sceneValue(node: ParsedSceneNode): string | undefined {
@@ -174,20 +183,11 @@ app.post("/api/viewer/load", async (req: Request, res: Response) => {
     const host  = req.get("host") ?? `localhost:${port}`;
     const baseUrl = `${proto}://${host}`;
 
-    // ── Case 1: UrlSource ─────────────────────────────────────────────────────
-    const urlSource = (source.UrlSource ?? {}) as Record<string, unknown>;
-    const modelUrl = isJson ? (urlSource.Url as string || "") : str(urlSource.Url);
-    if (modelUrl) {
-        params.set("path", modelUrl);
-        const endpoint = `${baseUrl}?${params.toString()}`;
-        sendResponse(200, 200, sessionToken, "Ready", endpoint);
-        return;
-    }
-
-    // ── Case 2: LocalSource (Base64) ─────────────────────────────────────────
-    const localSource = (source.LocalSource ?? {}) as Record<string, unknown>;
-    const base64 = isJson ? ((localSource.FileContent as string) || "").trim() : str(localSource.FileContent).trim();
-    const fileExtRaw = isJson ? ((localSource.FileExtension as string) || ".glb") : (str(localSource.FileExtension) || ".glb");
+    // ── Case 1: LocalSource (Base64) 
+    const localSourceNode = source.LocalSource;
+    const localSource = (localSourceNode ?? {}) as Record<string, unknown>;
+    const base64 = isJson ? ((localSource.FileContent as string) || "").trim() : str(localSourceNode).trim();
+    const fileExtRaw = isJson ? ((localSource.FileExtension as string) || ".glb") : (attr(localSourceNode, "extension") || ".glb");
     const ext = fileExtRaw.startsWith(".") ? fileExtRaw : `.${fileExtRaw}`;
 
     if (base64) {
@@ -205,13 +205,131 @@ app.post("/api/viewer/load", async (req: Request, res: Response) => {
 
         params.set("path", `/models/${modelFile}`);
         const endpoint = `${baseUrl}?${params.toString()}`;
-        sendResponse(200, 200, sessionToken, "Ready", endpoint, base64.length * 0.75);
+        const loadedContentKb = (base64.length * 0.75) / 1024;
+        sendResponse(200, 200, sessionToken, "Ready", endpoint, loadedContentKb);
+        return;
+    }
+
+    // ── Case 2: UrlSource ─────────────────────────────────────────────────────
+    const urlSource = (source.UrlSource ?? {}) as Record<string, unknown>;
+    const modelUrl = isJson ? (urlSource.Url as string || "") : str(urlSource.Url);
+    if (modelUrl) {
+        params.set("path", modelUrl);
+        const endpoint = `${baseUrl}?${params.toString()}`;
+        sendResponse(200, 200, sessionToken, "Ready", endpoint);
         return;
     }
 
     sendResponse(400, 400, sessionToken, "No valid Source found (UrlSource.Url or LocalSource.FileContent required)");
 });
 
+
+// ─── GET /api/proxy — server-side fetch so the browser never makes the ────────
+// cross-origin request itself (sidesteps CORS, since CORS is a browser-only
+// restriction). Guards against SSRF by rejecting requests aimed at private,
+// loopback, or link-local addresses.
+
+const PROXY_TIMEOUT_MS = 30_000;
+const PROXY_MAX_BYTES = 500 * 1024 * 1024; // 500MB, generous for GLB/GLTF/FBX assets
+
+function isBlockedIp(ip: string): boolean {
+    if (net.isIPv4(ip)) {
+        const [a, b] = ip.split(".").map(Number);
+        return (
+            a === 10 ||
+            a === 127 ||
+            a === 0 ||
+            (a === 169 && b === 254) ||
+            (a === 172 && b >= 16 && b <= 31) ||
+            (a === 192 && b === 168) ||
+            (a === 100 && b >= 64 && b <= 127) // CGNAT
+        );
+    }
+    if (net.isIPv6(ip)) {
+        const lower = ip.toLowerCase();
+        if (lower === "::1" || lower === "::") return true;
+        if (lower.startsWith("fe80:")) return true; // link-local
+        if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // unique local
+        if (lower.startsWith("::ffff:")) {
+            const v4 = lower.split(":").pop()!;
+            if (net.isIPv4(v4)) return isBlockedIp(v4);
+        }
+        return false;
+    }
+    return true; // unrecognized format — fail closed
+}
+
+app.get("/api/proxy", async (req: Request, res: Response) => {
+    const target = req.query.url;
+    if (typeof target !== "string" || !target) {
+        res.status(400).json({ error: "Missing 'url' query parameter" });
+        return;
+    }
+
+    let parsed: URL;
+    try {
+        parsed = new URL(target);
+    } catch {
+        res.status(400).json({ error: "Invalid URL" });
+        return;
+    }
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        res.status(400).json({ error: "Only http/https URLs are supported" });
+        return;
+    }
+
+    try {
+        const hostIp = net.isIP(parsed.hostname) ? parsed.hostname : (await dns.lookup(parsed.hostname)).address;
+        if (isBlockedIp(hostIp)) {
+            res.status(400).json({ error: "Target host is not allowed" });
+            return;
+        }
+    } catch {
+        res.status(400).json({ error: "Could not resolve host" });
+        return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+    req.on("close", () => controller.abort());
+
+    try {
+        const upstream = await fetch(parsed.toString(), { signal: controller.signal });
+
+        if (!upstream.ok || !upstream.body) {
+            res.status(502).json({ error: `Upstream returned ${upstream.status}` });
+            return;
+        }
+
+        const contentLength = upstream.headers.get("content-length");
+        if (contentLength && Number(contentLength) > PROXY_MAX_BYTES) {
+            res.status(502).json({ error: "Upstream resource is too large" });
+            return;
+        }
+
+        const contentType = upstream.headers.get("content-type");
+        if (contentType) res.set("Content-Type", contentType);
+        if (contentLength) res.set("Content-Length", contentLength);
+
+        let bytesReceived = 0;
+        const upstreamStream = Readable.fromWeb(upstream.body as import("stream/web").ReadableStream);
+        upstreamStream.on("data", (chunk: Buffer) => {
+            bytesReceived += chunk.length;
+            if (bytesReceived > PROXY_MAX_BYTES) {
+                upstreamStream.destroy();
+                controller.abort();
+                if (!res.headersSent) res.status(502);
+                res.end();
+            }
+        });
+        upstreamStream.pipe(res);
+    } catch {
+        if (!res.headersSent) res.status(502).json({ error: "Failed to fetch upstream resource" });
+    } finally {
+        clearTimeout(timeout);
+    }
+});
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 
