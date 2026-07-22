@@ -21,11 +21,13 @@ namespace XRCulture3DReconstruction.Workflows
 
             await LogMessage("openMVG: Structure from Motion started...");
 
-            var quality = Options?.GetValueOrDefault("quality", "High") ?? "Ultra";
-
             var isLinuxPlatform = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Linux);
             var toolPaths = isLinuxPlatform ? "ToolPathsLinux" : "ToolPaths";
             var sep = Path.DirectorySeparatorChar;
+
+
+            var quality = Options?.GetValueOrDefault("quality", "High") ?? "High";
+            var describerMethod = Options?.GetValueOrDefault("describerMethod", "SIFT") ?? "SIFT";
 
             {
                 await LogMessage("*** Intrinsics analysis started...");
@@ -47,7 +49,7 @@ namespace XRCulture3DReconstruction.Workflows
                 await LogMessage("*** Compute features started...");
 
                 var exePath = Configuration[$"{toolPaths}:OpenMVG"] + (isLinuxPlatform ? "/openMVG_main_ComputeFeatures" : @"\openMVG_main_ComputeFeatures.exe");
-                var args = $"--input_file {inputDir}{sep}matches{sep}sfm_data.json --outdir {inputDir}{sep}matches --describerMethod \"AKAZE_FLOAT\" --describerPreset \"{quality.ToUpper()}\"";
+                var args = $"--input_file {inputDir}{sep}matches{sep}sfm_data.json --outdir {inputDir}{sep}matches --describerMethod \"{describerMethod}\" --describerPreset \"{quality.ToUpper()}\"";
                 var exitCode = ExecuteProcess(exePath, args);
                 if (exitCode != 0)
                 {

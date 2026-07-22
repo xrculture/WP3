@@ -79,7 +79,7 @@ namespace XRCulture3DReconstruction.Workflows
                 await LogMessage($"*** Reconstructing Mesh completed successfully in {stopWatch.Elapsed:hh\\:mm\\:ss\\.fff}.");
             }
 
-            if (quality.Equals("ULTRA", StringComparison.OrdinalIgnoreCase))
+            if (quality.Equals("HIGH", StringComparison.OrdinalIgnoreCase) || quality.Equals("ULTRA", StringComparison.OrdinalIgnoreCase))
             {
                 {
                     await LogMessage("*** Refining Mesh started...");
@@ -112,7 +112,7 @@ namespace XRCulture3DReconstruction.Workflows
 
                     await LogMessage($"*** Texturing Mesh completed successfully in {stopWatch.Elapsed:hh\\:mm\\:ss\\.fff}.");
                 }
-            } // ULTRA
+            } // HIGH || ULTRA
             else
             {
                 {

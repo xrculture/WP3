@@ -413,7 +413,13 @@ namespace XRCulture3DReconstruction.Services
                     if (string.IsNullOrEmpty(taskStatus.Workflow) /*backward compatibility*/ ||
                         taskStatus.Workflow == "openMVG-openMVS")
                     {
-                        var openMVG_openMVS_Workflow = new openMVG_openMVS(_configuration, taskLogger, _signalRLogger, "***SignalR-Log-Hub***", taskStatus.TaskId, null);
+                        var openMVG_openMVS_Workflow = new openMVG_openMVS(
+                            _configuration, 
+                            taskLogger, 
+                            _signalRLogger, 
+                            "***SignalR-Log-Hub***", 
+                            taskStatus.TaskId, 
+                            new Dictionary<string, string> { { "quality", "High" }, { "describerMethod", "AKAZE_FLOAT" } });
                         if (await openMVG_openMVS_Workflow.Execute(taskStatus.Model, dataPath))
                         {
                             await CompleteTask(taskStatus.TaskId, "", openMVG_openMVS_Workflow.ViewUrl, openMVG_openMVS_Workflow.DownloadUrl);
