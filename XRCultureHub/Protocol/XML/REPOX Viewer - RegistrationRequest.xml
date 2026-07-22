@@ -4,7 +4,7 @@
 		<ProviderID>REPOX</ProviderID>
 		<ServiceName>REPOX 3D Viewer</ServiceName>
 		<ServiceType>Viewer</ServiceType>
-		<EndPoint>https://3dapi.repox.io/xrculture/models</EndPoint>
+		<EndPoint>https://3d.repox.io/api/generate-url</EndPoint>
 		<SessionToken>%SESSION_TOKEN%</SessionToken>
 		<ContactEmail>admin@example.com</ContactEmail>
 		<BackEnd>
