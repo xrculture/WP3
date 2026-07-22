@@ -42,7 +42,7 @@ namespace XRCultureTestServicesTool
             // 1. base64 request
             ViewModelRequest();
 
-            // 2. Multi-part request
+            // 2. Test: Multi-part request
             //ViewModelMultiPartRequest();
         }
 
