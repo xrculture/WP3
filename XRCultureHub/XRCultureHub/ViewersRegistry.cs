@@ -82,6 +82,19 @@ namespace XRCultureHub
             }
             return false;
         }
+
+        public static string? GetViewerId(ILogger logger, IConfiguration configuration, string endPoint)
+        {
+            var viewers = GetViewerDescriptors(logger, configuration);
+            foreach (var viewer in viewers)
+            {
+                if (viewer.EndPoint == endPoint)
+                {
+                    return viewer.Id;
+                }
+            }
+            return null;
+        }
     }
 
     public class ViewerDescriptor

@@ -190,7 +190,7 @@ namespace XRCultureHub.Pages
 
                     try
                     {
-                        dynamic jsonDoc = JsonConvert.DeserializeObject(viewerDescriptor.BackEnd);
+                        dynamic jsonDoc = JsonConvert.DeserializeObject(viewerDescriptor!.BackEnd!);
 
                         var formats = jsonDoc?.SupportedOptions?.FileFormats?.Format;
                         if (formats == null)
@@ -1351,7 +1351,7 @@ namespace XRCultureHub.Pages
                 return Content(HTTPResponse.ServerErrorXML.Replace("%MESSAGE%", "Viewers directory does not exist."), "application/xml");
             }
 
-            var viewerId = Guid.NewGuid().ToString();
+            var viewerId = update ? ViewersRegistry.GetViewerId(_logger, _configuration, endPoint) : Guid.NewGuid().ToString();
             _logger.LogInformation($"Viewer registered with ID: {viewerId}");
 
             StringBuilder xml = new();
@@ -1520,7 +1520,7 @@ namespace XRCultureHub.Pages
                 return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Viewers directory does not exist."), "application/json");
             }
 
-            var viewerId = Guid.NewGuid().ToString();
+            var viewerId = update ? ViewersRegistry.GetViewerId(_logger, _configuration, endPoint) : Guid.NewGuid().ToString();
             _logger.LogInformation($"Viewer registered with ID: {viewerId}");
 
             // Store as XML for compatibility with existing system
@@ -1625,7 +1625,7 @@ namespace XRCultureHub.Pages
                 return Content(HTTPResponse.ServerErrorXML.Replace("%MESSAGE%", "Services directory does not exist."), "application/xml");
             }
 
-            var serviceId = Guid.NewGuid().ToString();
+            var serviceId = update ? ViewersRegistry.GetViewerId(_logger, _configuration, endPoint) : Guid.NewGuid().ToString();
             _logger.LogInformation($"Service registered with ID: {serviceId}");
 
             StringBuilder xml = new();
@@ -1773,7 +1773,7 @@ namespace XRCultureHub.Pages
                 return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Services directory does not exist."), "application/json");
             }
 
-            var serviceId = Guid.NewGuid().ToString();
+            var serviceId = update ? ViewersRegistry.GetViewerId(_logger, _configuration, endPoint) : Guid.NewGuid().ToString();
             _logger.LogInformation($"Service registered with ID: {serviceId}");
 
             // Store as XML for compatibility with existing system
