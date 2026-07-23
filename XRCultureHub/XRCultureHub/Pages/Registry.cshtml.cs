@@ -62,6 +62,19 @@ namespace XRCultureHub.Pages
       <Message>Service successfully registered.</Message>
 </RegistrationResponse>";
 
+        const string updateResponseJSON =
+@"{
+    ""Status"": 200,
+    ""Message"": ""Service successfully updated.""
+}";
+
+        const string updateResponseXML =
+@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<UpdateResponse>
+      <Status>200</Status>
+      <Message>Service successfully updated.</Message>
+</UpdateResponse>";
+
         const string registrationResponseErrorJSON =
 @"{
     ""Status"": 400,
@@ -1354,7 +1367,7 @@ namespace XRCultureHub.Pages
             xml.AppendLine("</Viewer>");
             System.IO.File.WriteAllText(Path.Combine(viewersDir, $"{viewerId}.xml"), xml.ToString());
 
-            return Content(registrationResponseXML.Replace("%SESSION_TOKEN%", sessionToken));
+            return update ? Content(updateResponseXML.Replace("%SESSION_TOKEN%", sessionToken)) : Content(registrationResponseXML.Replace("%SESSION_TOKEN%", sessionToken));
         }
 
         private IActionResult RegisterViewerJSON(dynamic jsonDoc, bool update)
@@ -1523,7 +1536,7 @@ namespace XRCultureHub.Pages
             xml.AppendLine("</Viewer>");
             System.IO.File.WriteAllText(Path.Combine(viewersDir, $"{viewerId}.xml"), xml.ToString());
 
-            return Content(registrationResponseJSON, "application/json");
+            return update ? Content(updateResponseJSON, "application/json") : Content(registrationResponseJSON, "application/json");
         }
 
         private IActionResult RegisterServiceXML(string serviceType, XmlDocument xmlDoc, bool update)
@@ -1629,7 +1642,7 @@ namespace XRCultureHub.Pages
             xml.AppendLine("</Service>");
             System.IO.File.WriteAllText(Path.Combine(servicesDir, $"{serviceId}.xml"), xml.ToString());
 
-            return Content(registrationResponseXML.Replace("%SESSION_TOKEN%", sessionToken));
+            return update ? Content(updateResponseXML.Replace("%SESSION_TOKEN%", sessionToken)) : Content(registrationResponseXML.Replace("%SESSION_TOKEN%", sessionToken));
         }
 
         private IActionResult RegisterServiceJSON(string serviceType, dynamic jsonDoc, bool update)
@@ -1776,7 +1789,7 @@ namespace XRCultureHub.Pages
             xml.AppendLine("</Service>");
             System.IO.File.WriteAllText(Path.Combine(servicesDir, $"{serviceId}.xml"), xml.ToString());
 
-            return Content(registrationResponseJSON, "application/json");
+            return update ? Content(updateResponseJSON, "application/json") : Content(registrationResponseJSON, "application/json");
         }
 
         private static string FormatXml(string xml, string indentChars = "\t")
