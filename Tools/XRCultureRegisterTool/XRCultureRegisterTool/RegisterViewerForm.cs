@@ -439,11 +439,11 @@ namespace XRCultureRegisterTool
 
                     using (HttpClient client = new HttpClient())
                     {
-                        var url = _textBoxHubURL.Text + "Registry";
-                        var content = new StringContent(registerRequest, Encoding.UTF8,
-                            bJSONContent ? "application/json" : "application/xml");
+                        var request = new HttpRequestMessage(HttpMethod.Delete, _textBoxHubURL.Text + "Registry");
+                        request.Content = new StringContent(registerRequest, Encoding.UTF8,
+                            bJSONContent ? "application/json" : "application/xml"); ;
 
-                        HttpResponseMessage response = await client.PutAsync(url, content);
+                        HttpResponseMessage response = await client.SendAsync(request);
 
                         string responseString = await response.Content.ReadAsStringAsync();
                         if (string.IsNullOrEmpty(responseString))
@@ -464,11 +464,11 @@ namespace XRCultureRegisterTool
                             var status = jsonResponse?.Status;
                             if (jsonResponse?.Status == "200")
                             {
-                                MessageBox.Show("Viewer successfully registered.");
+                                MessageBox.Show("Viewer successfully deleted.");
                             }
                             else
                             {
-                                throw new Exception($"Registration failed. Status: {status}");
+                                throw new Exception($"Deletion failed. Status: {status}");
                             }
                         }
                         else
@@ -483,11 +483,11 @@ namespace XRCultureRegisterTool
                             var status = xmlDoc.SelectSingleNode("//Status")?.InnerText;
                             if (status?.Trim() == "200")
                             {
-                                MessageBox.Show("Service successfully updated.");
+                                MessageBox.Show("Service successfully deleted.");
                             }
                             else
                             {
-                                throw new Exception($"Update failed. Status: {status}");
+                                throw new Exception($"Deletion failed. Status: {status}");
                             }
                         }
                     }

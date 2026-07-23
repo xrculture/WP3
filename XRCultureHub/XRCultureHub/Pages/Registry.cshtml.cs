@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Text;
 using System.Xml;
 using XRCultureHub.Models;
+using XRCultureHub.Services;
 
 
 namespace XRCultureHub.Pages
@@ -74,6 +75,19 @@ namespace XRCultureHub.Pages
       <Status>200</Status>
       <Message>Service successfully updated.</Message>
 </UpdateResponse>";
+
+        const string deleteResponseJSON =
+@"{
+    ""Status"": 200,
+    ""Message"": ""Service successfully deleted.""
+}";
+
+        const string deleteResponseXML =
+@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<DeleteResponse>
+      <Status>200</Status>
+      <Message>Service successfully deleted.</Message>
+</DeleteResponse>";
 
         const string registrationResponseErrorJSON =
 @"{
@@ -1150,6 +1164,105 @@ namespace XRCultureHub.Pages
             }
         }
 
+        public async Task<IActionResult> OnDeleteAsync()
+        {
+            _logger.LogInformation("Received request.");
+
+            bool bJSONContentType = Request.ContentType?.StartsWith("application/json") == true;
+
+            using var reader = new StreamReader(Request.Body);
+            var body = await reader.ReadToEndAsync();
+            if (string.IsNullOrEmpty(body))
+            {
+                _logger.LogInformation("Received empty request.");
+                return Content(bJSONContentType ?
+                    HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Received empty request.") :
+                    HTTPResponse.BadRequestXML.Replace("%MESSAGE%", "Received empty request."));
+            }
+
+            dynamic jsonRequest = JsonConvert.DeserializeObject(body);
+            if (jsonRequest == null)
+            {
+                _logger.LogInformation("Received empty request.");
+                return Content(bJSONContentType ?
+                    HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Received empty request.") :
+                    HTTPResponse.BadRequestXML.Replace("%MESSAGE%", "Received empty request."));
+            }
+            _logger.LogInformation($"****** Request ******\n{body}");
+
+            if (bJSONContentType)
+            {
+                if (jsonRequest.Protocol?.AuthorizationRequest != null)
+                {
+                    return AuthorizeJSON(jsonRequest);
+                }
+
+                var serviceType = jsonRequest.Protocol?.RegistrationRequest?.ServiceType?.ToString();
+                if (string.IsNullOrEmpty(serviceType))
+                {
+                    _logger.LogError("Missing 'ServiceType' in registration request.");
+                    return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Missing 'ServiceType' in registration request."), "application/json");
+                }
+
+                switch (serviceType)
+                {
+                    case "Viewer":
+                        return DeleteViewerJSON(jsonRequest);
+                    case "ThumbnailGenerator":
+                    case "Converter":
+                    case "MeshFilter":
+                    case "Photogrammetry":
+                    case "Repository":
+                        return DeleteServiceJSON(serviceType, jsonRequest);
+                    default:
+                        _logger.LogError($"Unknown ServiceType: {serviceType}");
+                        return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", $"Unknown ServiceType: {serviceType}"), "application/json");
+                }
+            }
+            else
+            {
+                XmlDocument xmlRequest = new XmlDocument();
+                try
+                {
+                    var xmlBody = JsonConvert.DeserializeObject<string>(body);
+                    xmlRequest.LoadXml(xmlBody);
+                }
+                catch (XmlException ex)
+                {
+                    _logger.LogError($"XML parsing error: {ex.Message}");
+                    return Content(HTTPResponse.BadRequestXML.Replace("%MESSAGE%", "XML parsing error."));
+                }
+
+                var authorizationRequest = xmlRequest.SelectSingleNode("/Protocol/AuthorizationRequest");
+                if (authorizationRequest != null)
+                {
+                    return AuthorizeXML(xmlRequest);
+                }
+
+                var serviceType = xmlRequest.SelectSingleNode("/Protocol/RegistrationRequest/ServiceType")?.InnerText;
+                if (string.IsNullOrEmpty(serviceType))
+                {
+                    _logger.LogError("Missing 'ServiceType' in registration request.");
+                    return Content(HTTPResponse.BadRequestXML.Replace("%MESSAGE%", "Missing 'ServiceType' in registration request."), "application/xml");
+                }
+
+                switch (serviceType)
+                {
+                    case "Viewer":
+                        return DeleteViewerXML(xmlRequest);
+                    case "ThumbnailGenerator":
+                    case "Converter":
+                    case "MeshFilter":
+                    case "Photogrammetry":
+                    case "Repository":
+                        return DeleteServiceXML(serviceType, xmlRequest);
+                    default:
+                        _logger.LogError($"Unknown ServiceType: {serviceType}");
+                        return Content(HTTPResponse.BadRequestXML.Replace("%MESSAGE%", $"Unknown ServiceType: {serviceType}"), "application/xml");
+                }
+            }
+        }
+
         public async Task<IActionResult> OnPostAuthorizeAsync()
         {
             using var reader = new StreamReader(Request.Body);
@@ -1352,7 +1465,6 @@ namespace XRCultureHub.Pages
             }
 
             var viewerId = update ? ViewersRegistry.GetViewerId(_logger, _configuration, endPoint) : Guid.NewGuid().ToString();
-            _logger.LogInformation($"Viewer registered with ID: {viewerId}");
 
             StringBuilder xml = new();
             xml.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
@@ -1368,6 +1480,85 @@ namespace XRCultureHub.Pages
             System.IO.File.WriteAllText(Path.Combine(viewersDir, $"{viewerId}.xml"), xml.ToString());
 
             return update ? Content(updateResponseXML.Replace("%SESSION_TOKEN%", sessionToken)) : Content(registrationResponseXML.Replace("%SESSION_TOKEN%", sessionToken));
+        }
+
+        private IActionResult DeleteViewerXML(XmlDocument xmlDoc)
+        {
+            if (xmlDoc == null)
+            {
+                _logger.LogError("Received null XML document.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Received null XML document."));
+            }
+
+            var providerId = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/ProviderID")?.InnerText;
+            if (string.IsNullOrEmpty(providerId))
+            {
+                _logger.LogError("Bad request: 'ProviderID'.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Bad request: 'ProviderID'."));
+            }
+
+            var serviceName = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/ServiceName")?.InnerText;
+
+            //#todo: validate providerId or move it to the OnPost method
+
+            if (!AuthorizationRequests.TryGetValue(providerId, out var authorizationRequest))
+            {
+                _logger.LogError($"Provider '{providerId}' is not authorized.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Provider is not authorized."));
+            }
+
+            var sessionToken = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/SessionToken")?.InnerText;
+            if (string.IsNullOrEmpty(sessionToken))
+            {
+                _logger.LogError("Bad request: 'SessionToken'.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Bad request: 'SessionToken'."));
+            }
+
+            if (sessionToken != authorizationRequest.SessionToken)
+            {
+                _logger.LogError("Bad request: invalid 'SessionToken'.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Bad request: invalid 'SessionToken'."));
+            }
+
+            var endPoint = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/EndPoint")?.InnerText;
+            if (string.IsNullOrEmpty(endPoint))
+            {
+                _logger.LogError("Bad request: 'EndPoint'.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Bad request: 'EndPoint'."));
+            }
+
+            if (!ViewersRegistry.IsViewerRegistered(_logger, _configuration, endPoint))
+            {
+                _logger.LogError($"Viewer is not registered 'Endpoint': {endPoint}");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Viewer is not registered."));
+            }
+
+            var isLinuxPlatform = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Linux);
+            var FileStorage = isLinuxPlatform ? "FileStorageLinux" : "FileStorage";
+
+            var viewersDir = _configuration[$"{FileStorage}:ViewersDir"];
+            if (string.IsNullOrEmpty(viewersDir))
+            {
+                _logger.LogError("Viewers path is not configured.");
+                return Content(HTTPResponse.ServerErrorXML.Replace("%MESSAGE%", "Viewers path is not configured."), "application/xml");
+            }
+
+            if (!Directory.Exists(viewersDir))
+            {
+                _logger.LogError($"Viewers directory does not exist: {viewersDir}");
+                return Content(HTTPResponse.ServerErrorXML.Replace("%MESSAGE%", "Viewers directory does not exist."), "application/xml");
+            }
+
+            var viewerId = ViewersRegistry.GetViewerId(_logger, _configuration, endPoint);
+            if (!System.IO.File.Exists(Path.Combine(viewersDir, $"{viewerId}.xml")))
+            {   
+                _logger.LogError($"Viewer file does not exist for ID: {viewerId}");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Viewer file does not exist."), "application/xml");
+            }
+
+            System.IO.File.Delete(Path.Combine(viewersDir, $"{viewerId}.xml"));
+
+            return Content(deleteResponseXML.Replace("%SESSION_TOKEN%", sessionToken));
         }
 
         private IActionResult RegisterViewerJSON(dynamic jsonDoc, bool update)
@@ -1521,7 +1712,6 @@ namespace XRCultureHub.Pages
             }
 
             var viewerId = update ? ViewersRegistry.GetViewerId(_logger, _configuration, endPoint) : Guid.NewGuid().ToString();
-            _logger.LogInformation($"Viewer registered with ID: {viewerId}");
 
             // Store as XML for compatibility with existing system
             StringBuilder xml = new();
@@ -1537,6 +1727,113 @@ namespace XRCultureHub.Pages
             System.IO.File.WriteAllText(Path.Combine(viewersDir, $"{viewerId}.xml"), xml.ToString());
 
             return update ? Content(updateResponseJSON, "application/json") : Content(registrationResponseJSON, "application/json");
+        }
+
+        private IActionResult DeleteViewerJSON(dynamic jsonDoc)
+        {
+            if (jsonDoc == null)
+            {
+                _logger.LogError("Received null JSON document.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Received null JSON document."), "application/json");
+            }
+
+            // Extract ProviderID from JSON structure: Protocol.RegistrationRequest.ProviderID
+            string? providerId = null;
+            try
+            {
+                providerId = jsonDoc?.Protocol?.RegistrationRequest?.ProviderID?.ToString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error extracting ProviderID from JSON: {ex.Message}");
+            }
+
+            if (string.IsNullOrEmpty(providerId))
+            {
+                _logger.LogError("Bad request: 'ProviderID'.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Bad request: 'ProviderID'."), "application/json");
+            }
+
+            //#todo: validate providerId or move it to the OnPost method
+
+            if (!AuthorizationRequests.TryGetValue(providerId, out var authorizationRequest))
+            {
+                _logger.LogError($"Provider '{providerId}' is not authorized.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Provider is not authorized."), "application/json");
+            }
+
+            // Extract SessionToken from JSON
+            string? sessionToken = null;
+            try
+            {
+                sessionToken = jsonDoc?.Protocol?.RegistrationRequest?.SessionToken?.ToString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error extracting SessionToken from JSON: {ex.Message}");
+            }
+
+            if (string.IsNullOrEmpty(sessionToken))
+            {
+                _logger.LogError("Bad request: 'SessionToken'.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Bad request: 'SessionToken'."), "application/json");
+            }
+
+            if (sessionToken != authorizationRequest.SessionToken)
+            {
+                _logger.LogError("Bad request: invalid 'SessionToken'.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Bad request: invalid 'SessionToken'."), "application/json");
+            }
+
+            // Extract EndPoint from JSON
+            string? endPoint = null;
+            try
+            {
+                endPoint = jsonDoc?.Protocol?.RegistrationRequest?.EndPoint?.ToString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error extracting EndPoint from JSON: {ex.Message}");
+            }
+
+            if (string.IsNullOrEmpty(endPoint))
+            {
+                _logger.LogError("Bad request: 'EndPoint'.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Bad request: 'EndPoint'."), "application/json");
+            }
+
+            if (!ViewersRegistry.IsViewerRegistered(_logger, _configuration, endPoint))
+            {
+                _logger.LogError($"Viewer is not registered 'Endpoint': {endPoint}");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Viewer is not registered."), "application/json");
+            }
+
+            var isLinuxPlatform = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Linux);
+            var FileStorage = isLinuxPlatform ? "FileStorageLinux" : "FileStorage";
+
+            var viewersDir = _configuration[$"{FileStorage}:ViewersDir"];
+            if (string.IsNullOrEmpty(viewersDir))
+            {
+                _logger.LogError("Viewers path is not configured.");
+                return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Viewers path is not configured."), "application/json");
+            }
+
+            if (!Directory.Exists(viewersDir))
+            {
+                _logger.LogError($"Viewers directory does not exist: {viewersDir}");
+                return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Viewers directory does not exist."), "application/json");
+            }
+
+            var viewerId = ViewersRegistry.GetViewerId(_logger, _configuration, endPoint);
+            if (!System.IO.File.Exists(Path.Combine(viewersDir, $"{viewerId}.xml")))
+            {
+                _logger.LogError($"Viewer file does not exist for ID: {viewerId}");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Viewer file does not exist."), "application/xml");
+            }
+
+            System.IO.File.Delete(Path.Combine(viewersDir, $"{viewerId}.xml"));
+
+            return Content(deleteResponseJSON, "application/json"); 
         }
 
         private IActionResult RegisterServiceXML(string serviceType, XmlDocument xmlDoc, bool update)
@@ -1626,7 +1923,6 @@ namespace XRCultureHub.Pages
             }
 
             var serviceId = update ? ViewersRegistry.GetViewerId(_logger, _configuration, endPoint) : Guid.NewGuid().ToString();
-            _logger.LogInformation($"Service registered with ID: {serviceId}");
 
             StringBuilder xml = new();
             xml.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
@@ -1643,6 +1939,93 @@ namespace XRCultureHub.Pages
             System.IO.File.WriteAllText(Path.Combine(servicesDir, $"{serviceId}.xml"), xml.ToString());
 
             return update ? Content(updateResponseXML.Replace("%SESSION_TOKEN%", sessionToken)) : Content(registrationResponseXML.Replace("%SESSION_TOKEN%", sessionToken));
+        }
+
+        private IActionResult DeleteServiceXML(string serviceType, XmlDocument xmlDoc)
+        {
+            if (xmlDoc == null)
+            {
+                _logger.LogError("Received null XML document.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Received null XML document."));
+            }
+
+            var providerId = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/ProviderID")?.InnerText;
+            if (string.IsNullOrEmpty(providerId))
+            {
+                _logger.LogError("Bad request: 'ProviderID'.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Bad request: 'ProviderID'."));
+            }
+
+            //#todo: validate providerId or move it to the OnPost method
+
+            if (!AuthorizationRequests.TryGetValue(providerId, out var authorizationRequest))
+            {
+                _logger.LogError($"Provider '{providerId}' is not authorized.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Provider is not authorized."));
+            }
+
+            var sessionToken = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/SessionToken")?.InnerText;
+            if (string.IsNullOrEmpty(sessionToken))
+            {
+                _logger.LogError("Bad request: 'SessionToken'.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Bad request: 'SessionToken'."));
+            }
+
+            if (sessionToken != authorizationRequest.SessionToken)
+            {
+                _logger.LogError("Bad request: invalid 'SessionToken'.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Bad request: invalid 'SessionToken'."));
+            }
+
+            var serviceName = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/ServiceName")?.InnerText;
+            var uploadEndpoint = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/UploadEndPoint")?.InnerText;
+
+            var endPoint = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/EndPoint")?.InnerText;
+            if (string.IsNullOrEmpty(endPoint))
+            {
+                _logger.LogError("Bad request: 'EndPoint'.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Bad request: 'EndPoint'."));
+            }
+
+            if (!ServicesRegistry.IsServiceRegistered(_logger, _configuration, endPoint))
+            {
+                _logger.LogError($"Service is not registered 'Endpoint': {endPoint}");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Service is not registered."));
+            }
+
+            var backEnd = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/BackEnd")?.InnerXml;
+            if (string.IsNullOrEmpty(backEnd))
+            {
+                _logger.LogError("Bad request: 'BackEnd'.");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Bad request: 'BackEnd'."));
+            }
+
+            var isLinuxPlatform = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Linux);
+            var FileStorage = isLinuxPlatform ? "FileStorageLinux" : "FileStorage";
+
+            var servicesDir = _configuration[$"{FileStorage}:ServicesDir"];
+            if (string.IsNullOrEmpty(servicesDir))
+            {
+                _logger.LogError("Services path is not configured.");
+                return Content(HTTPResponse.ServerErrorXML.Replace("%MESSAGE%", "Services path is not configured."), "application/xml");
+            }
+
+            if (!Directory.Exists(servicesDir))
+            {
+                _logger.LogError($"Services directory does not exist: {servicesDir}");
+                return Content(HTTPResponse.ServerErrorXML.Replace("%MESSAGE%", "Services directory does not exist."), "application/xml");
+            }
+
+            var serviceId = ViewersRegistry.GetViewerId(_logger, _configuration, endPoint);
+            if (!System.IO.File.Exists(Path.Combine(servicesDir, $"{serviceId}.xml")))
+            {
+                _logger.LogError($"Viewer file does not exist for ID: {serviceId}");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Viewer file does not exist."), "application/xml");
+            }
+
+            System.IO.File.Delete(Path.Combine(servicesDir, $"{serviceId}.xml"));
+
+            return Content(deleteResponseXML.Replace("%SESSION_TOKEN%", sessionToken));
         }
 
         private IActionResult RegisterServiceJSON(string serviceType, dynamic jsonDoc, bool update)
@@ -1773,8 +2156,7 @@ namespace XRCultureHub.Pages
                 return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Services directory does not exist."), "application/json");
             }
 
-            var serviceId = update ? ViewersRegistry.GetViewerId(_logger, _configuration, endPoint) : Guid.NewGuid().ToString();
-            _logger.LogInformation($"Service registered with ID: {serviceId}");
+            var serviceId = update ? ViewersRegistry.GetViewerId(_logger, _configuration, endPoint) : Guid.NewGuid().ToString();            
 
             // Store as XML for compatibility with existing system
             StringBuilder xml = new();
@@ -1790,6 +2172,113 @@ namespace XRCultureHub.Pages
             System.IO.File.WriteAllText(Path.Combine(servicesDir, $"{serviceId}.xml"), xml.ToString());
 
             return update ? Content(updateResponseJSON, "application/json") : Content(registrationResponseJSON, "application/json");
+        }
+
+        private IActionResult DeleteServiceJSON(string serviceType, dynamic jsonDoc)
+        {
+            if (jsonDoc == null)
+            {
+                _logger.LogError("Received null JSON document.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Received null JSON document."), "application/json");
+            }
+
+            // Extract ProviderID from JSON structure: Protocol.RegistrationRequest.ProviderID
+            string? providerId = null;
+            try
+            {
+                providerId = jsonDoc?.Protocol?.RegistrationRequest?.ProviderID?.ToString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error extracting ProviderID from JSON: {ex.Message}");
+            }
+
+            if (string.IsNullOrEmpty(providerId))
+            {
+                _logger.LogError("Bad request: 'ProviderID'.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Bad request: 'ProviderID'."), "application/json");
+            }
+
+            //#todo: validate providerId or move it to the OnPost method
+
+            if (!AuthorizationRequests.TryGetValue(providerId, out var authorizationRequest))
+            {
+                _logger.LogError($"Provider '{providerId}' is not authorized.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Provider is not authorized."), "application/json");
+            }
+
+            // Extract SessionToken from JSON
+            string? sessionToken = null;
+            try
+            {
+                sessionToken = jsonDoc?.Protocol?.RegistrationRequest?.SessionToken?.ToString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error extracting SessionToken from JSON: {ex.Message}");
+            }
+
+            if (string.IsNullOrEmpty(sessionToken))
+            {
+                _logger.LogError("Bad request: 'SessionToken'.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Bad request: 'SessionToken'."), "application/json");
+            }
+
+            if (sessionToken != authorizationRequest.SessionToken)
+            {
+                _logger.LogError("Bad request: invalid 'SessionToken'.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Bad request: invalid 'SessionToken'."), "application/json");
+            }
+
+            // Extract EndPoint from JSON
+            string? endPoint = null;
+            try
+            {
+                endPoint = jsonDoc?.Protocol?.RegistrationRequest?.EndPoint?.ToString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error extracting EndPoint from JSON: {ex.Message}");
+            }
+
+            if (string.IsNullOrEmpty(endPoint))
+            {
+                _logger.LogError("Bad request: 'EndPoint'.");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Bad request: 'EndPoint'."), "application/json");
+            }
+
+            if (!ServicesRegistry.IsServiceRegistered(_logger, _configuration, endPoint))
+            {
+                _logger.LogError($"Service is not registered 'Endpoint': {endPoint}");
+                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Service is not registered."), "application/json");
+            }
+
+            var isLinuxPlatform = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Linux);
+            var FileStorage = isLinuxPlatform ? "FileStorageLinux" : "FileStorage";
+
+            var servicesDir = _configuration[$"{FileStorage}:ServicesDir"];
+            if (string.IsNullOrEmpty(servicesDir))
+            {
+                _logger.LogError("Services path is not configured.");
+                return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Services path is not configured."), "application/json");
+            }
+
+            if (!Directory.Exists(servicesDir))
+            {
+                _logger.LogError($"Services directory does not exist: {servicesDir}");
+                return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Services directory does not exist."), "application/json");
+            }
+
+            var serviceId = ViewersRegistry.GetViewerId(_logger, _configuration, endPoint);
+            if (!System.IO.File.Exists(Path.Combine(servicesDir, $"{serviceId}.xml")))
+            {
+                _logger.LogError($"Viewer file does not exist for ID: {serviceId}");
+                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Viewer file does not exist."), "application/xml");
+            }
+
+            System.IO.File.Delete(Path.Combine(servicesDir, $"{serviceId}.xml"));
+
+            return Content(deleteResponseJSON, "application/json");
         }
 
         private static string FormatXml(string xml, string indentChars = "\t")
