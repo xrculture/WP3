@@ -46,7 +46,7 @@
             // 
             // _textBoxHubURL
             // 
-            _textBoxHubURL.Location = new Point(87, 13);
+            _textBoxHubURL.Location = new Point(49, 15);
             _textBoxHubURL.Name = "_textBoxHubURL";
             _textBoxHubURL.Size = new Size(255, 23);
             _textBoxHubURL.TabIndex = 0;
@@ -54,7 +54,7 @@
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(10, 17);
+            label1.Location = new Point(10, 19);
             label1.Name = "label1";
             label1.Size = new Size(33, 15);
             label1.TabIndex = 1;
@@ -63,7 +63,7 @@
             // _buttonRegister
             // 
             _buttonRegister.Enabled = false;
-            _buttonRegister.Location = new Point(86, 42);
+            _buttonRegister.Location = new Point(409, 15);
             _buttonRegister.Name = "_buttonRegister";
             _buttonRegister.Size = new Size(93, 23);
             _buttonRegister.TabIndex = 2;
@@ -73,7 +73,7 @@
             // 
             // _buttonAuthorize
             // 
-            _buttonAuthorize.Location = new Point(348, 13);
+            _buttonAuthorize.Location = new Point(310, 15);
             _buttonAuthorize.Name = "_buttonAuthorize";
             _buttonAuthorize.Size = new Size(93, 23);
             _buttonAuthorize.TabIndex = 3;
@@ -83,17 +83,17 @@
             // 
             // _textBoxLog
             // 
-            _textBoxLog.Location = new Point(11, 73);
+            _textBoxLog.Location = new Point(11, 48);
             _textBoxLog.Multiline = true;
             _textBoxLog.Name = "_textBoxLog";
             _textBoxLog.ReadOnly = true;
             _textBoxLog.ScrollBars = ScrollBars.Both;
-            _textBoxLog.Size = new Size(592, 367);
+            _textBoxLog.Size = new Size(689, 367);
             _textBoxLog.TabIndex = 4;
             // 
             // _buttonClose
             // 
-            _buttonClose.Location = new Point(609, 417);
+            _buttonClose.Location = new Point(709, 392);
             _buttonClose.Name = "_buttonClose";
             _buttonClose.Size = new Size(168, 23);
             _buttonClose.TabIndex = 5;
@@ -103,7 +103,7 @@
             // 
             // _buttonGetViewers
             // 
-            _buttonGetViewers.Location = new Point(609, 73);
+            _buttonGetViewers.Location = new Point(709, 48);
             _buttonGetViewers.Name = "_buttonGetViewers";
             _buttonGetViewers.Size = new Size(168, 23);
             _buttonGetViewers.TabIndex = 8;
@@ -113,7 +113,7 @@
             // 
             // _buttonGetConvertors
             // 
-            _buttonGetConvertors.Location = new Point(609, 131);
+            _buttonGetConvertors.Location = new Point(709, 106);
             _buttonGetConvertors.Name = "_buttonGetConvertors";
             _buttonGetConvertors.Size = new Size(168, 23);
             _buttonGetConvertors.TabIndex = 9;
@@ -123,7 +123,7 @@
             // 
             // _buttonGetThumbnailGenerators
             // 
-            _buttonGetThumbnailGenerators.Location = new Point(609, 102);
+            _buttonGetThumbnailGenerators.Location = new Point(709, 77);
             _buttonGetThumbnailGenerators.Name = "_buttonGetThumbnailGenerators";
             _buttonGetThumbnailGenerators.Size = new Size(168, 23);
             _buttonGetThumbnailGenerators.TabIndex = 10;
@@ -133,7 +133,7 @@
             // 
             // _buttonGetMeshFilters
             // 
-            _buttonGetMeshFilters.Location = new Point(609, 160);
+            _buttonGetMeshFilters.Location = new Point(709, 135);
             _buttonGetMeshFilters.Name = "_buttonGetMeshFilters";
             _buttonGetMeshFilters.Size = new Size(168, 23);
             _buttonGetMeshFilters.TabIndex = 11;
@@ -143,7 +143,7 @@
             // 
             // _buttonGetPhotogrammetryServices
             // 
-            _buttonGetPhotogrammetryServices.Location = new Point(609, 189);
+            _buttonGetPhotogrammetryServices.Location = new Point(709, 164);
             _buttonGetPhotogrammetryServices.Name = "_buttonGetPhotogrammetryServices";
             _buttonGetPhotogrammetryServices.Size = new Size(168, 23);
             _buttonGetPhotogrammetryServices.TabIndex = 12;
@@ -153,7 +153,7 @@
             // 
             // _buttonGetRepositories
             // 
-            _buttonGetRepositories.Location = new Point(609, 218);
+            _buttonGetRepositories.Location = new Point(709, 193);
             _buttonGetRepositories.Name = "_buttonGetRepositories";
             _buttonGetRepositories.Size = new Size(168, 23);
             _buttonGetRepositories.TabIndex = 13;
@@ -164,7 +164,7 @@
             // _buttonUpdate
             // 
             _buttonUpdate.Enabled = false;
-            _buttonUpdate.Location = new Point(185, 42);
+            _buttonUpdate.Location = new Point(508, 15);
             _buttonUpdate.Name = "_buttonUpdate";
             _buttonUpdate.Size = new Size(93, 23);
             _buttonUpdate.TabIndex = 14;
@@ -175,7 +175,7 @@
             // _buttonDelete
             // 
             _buttonDelete.Enabled = false;
-            _buttonDelete.Location = new Point(348, 44);
+            _buttonDelete.Location = new Point(607, 15);
             _buttonDelete.Name = "_buttonDelete";
             _buttonDelete.Size = new Size(93, 23);
             _buttonDelete.TabIndex = 15;
@@ -188,7 +188,7 @@
             AcceptButton = _buttonClose;
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(787, 451);
+            ClientSize = new Size(888, 425);
             ControlBox = false;
             Controls.Add(_buttonDelete);
             Controls.Add(_buttonUpdate);
