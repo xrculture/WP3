@@ -88,10 +88,10 @@ namespace XRCultureHub.Pages
         public async Task<IActionResult> OnGetAsync()
         {
             var sessionToken = Request.Query["SessionToken"];
-            var serviceType = Request.Query["ServiceType"].ToString();            
+            var serviceType = Request.Query["ServiceType"].ToString();
             var accept = Request.Query["Accept"].ToString();
-            bool bAcceptXML = !string.IsNullOrEmpty(accept) && 
-                (accept.Equals("application/xml", StringComparison.OrdinalIgnoreCase) || 
+            bool bAcceptXML = !string.IsNullOrEmpty(accept) &&
+                (accept.Equals("application/xml", StringComparison.OrdinalIgnoreCase) ||
                     accept.Equals("text/xml", StringComparison.OrdinalIgnoreCase) ||
                         accept.Equals("xml", StringComparison.OrdinalIgnoreCase));
 
@@ -426,7 +426,7 @@ namespace XRCultureHub.Pages
 
                     try
                     {
-                        
+
                         dynamic jsonDoc = JsonConvert.DeserializeObject(serviceDescriptor.BackEnd);
 
                         var conversions = jsonDoc?.BackEnd?.Conversions?.Conversion;
@@ -982,13 +982,13 @@ namespace XRCultureHub.Pages
                 switch (serviceType)
                 {
                     case "Viewer":
-                        return RegisterViewerJSON(jsonRequest);
+                        return RegisterViewerJSON(jsonRequest, false);
                     case "ThumbnailGenerator":
                     case "Converter":
                     case "MeshFilter":
                     case "Photogrammetry":
                     case "Repository":
-                        return RegisterServiceJSON(serviceType, jsonRequest);
+                        return RegisterServiceJSON(serviceType, jsonRequest, false);
                     default:
                         _logger.LogError($"Unknown ServiceType: {serviceType}");
                         return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", $"Unknown ServiceType: {serviceType}"), "application/json");
@@ -1024,13 +1024,112 @@ namespace XRCultureHub.Pages
                 switch (serviceType)
                 {
                     case "Viewer":
-                        return RegisterViewerXML(xmlRequest);
+                        return RegisterViewerXML(xmlRequest, false);
                     case "ThumbnailGenerator":
                     case "Converter":
                     case "MeshFilter":
                     case "Photogrammetry":
                     case "Repository":
-                        return RegisterServiceXML(serviceType, xmlRequest);
+                        return RegisterServiceXML(serviceType, xmlRequest, false);
+                    default:
+                        _logger.LogError($"Unknown ServiceType: {serviceType}");
+                        return Content(HTTPResponse.BadRequestXML.Replace("%MESSAGE%", $"Unknown ServiceType: {serviceType}"), "application/xml");
+                }
+            }
+        }
+
+        public async Task<IActionResult> OnPutAsync()
+        {
+            _logger.LogInformation("Received request.");
+
+            bool bJSONContentType = Request.ContentType?.StartsWith("application/json") == true;
+
+            using var reader = new StreamReader(Request.Body);
+            var body = await reader.ReadToEndAsync();
+            if (string.IsNullOrEmpty(body))
+            {
+                _logger.LogInformation("Received empty request.");
+                return Content(bJSONContentType ?
+                    HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Received empty request.") :
+                    HTTPResponse.BadRequestXML.Replace("%MESSAGE%", "Received empty request."));
+            }
+
+            dynamic jsonRequest = JsonConvert.DeserializeObject(body);
+            if (jsonRequest == null)
+            {
+                _logger.LogInformation("Received empty request.");
+                return Content(bJSONContentType ?
+                    HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Received empty request.") :
+                    HTTPResponse.BadRequestXML.Replace("%MESSAGE%", "Received empty request."));
+            }
+            _logger.LogInformation($"****** Request ******\n{body}");
+
+            if (bJSONContentType)
+            {
+                if (jsonRequest.Protocol?.AuthorizationRequest != null)
+                {
+                    return AuthorizeJSON(jsonRequest);
+                }
+
+                var serviceType = jsonRequest.Protocol?.RegistrationRequest?.ServiceType?.ToString();
+                if (string.IsNullOrEmpty(serviceType))
+                {
+                    _logger.LogError("Missing 'ServiceType' in registration request.");
+                    return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", "Missing 'ServiceType' in registration request."), "application/json");
+                }
+
+                switch (serviceType)
+                {
+                    case "Viewer":
+                        return RegisterViewerJSON(jsonRequest, true);
+                    case "ThumbnailGenerator":
+                    case "Converter":
+                    case "MeshFilter":
+                    case "Photogrammetry":
+                    case "Repository":
+                        return RegisterServiceJSON(serviceType, jsonRequest,true);
+                    default:
+                        _logger.LogError($"Unknown ServiceType: {serviceType}");
+                        return Content(HTTPResponse.BadRequestJSON.Replace("%MESSAGE%", $"Unknown ServiceType: {serviceType}"), "application/json");
+                }
+            }
+            else
+            {
+                XmlDocument xmlRequest = new XmlDocument();
+                try
+                {
+                    var xmlBody = JsonConvert.DeserializeObject<string>(body);
+                    xmlRequest.LoadXml(xmlBody);
+                }
+                catch (XmlException ex)
+                {
+                    _logger.LogError($"XML parsing error: {ex.Message}");
+                    return Content(HTTPResponse.BadRequestXML.Replace("%MESSAGE%", "XML parsing error."));
+                }
+
+                var authorizationRequest = xmlRequest.SelectSingleNode("/Protocol/AuthorizationRequest");
+                if (authorizationRequest != null)
+                {
+                    return AuthorizeXML(xmlRequest);
+                }
+
+                var serviceType = xmlRequest.SelectSingleNode("/Protocol/RegistrationRequest/ServiceType")?.InnerText;
+                if (string.IsNullOrEmpty(serviceType))
+                {
+                    _logger.LogError("Missing 'ServiceType' in registration request.");
+                    return Content(HTTPResponse.BadRequestXML.Replace("%MESSAGE%", "Missing 'ServiceType' in registration request."), "application/xml");
+                }
+
+                switch (serviceType)
+                {
+                    case "Viewer":
+                        return RegisterViewerXML(xmlRequest, true);
+                    case "ThumbnailGenerator":
+                    case "Converter":
+                    case "MeshFilter":
+                    case "Photogrammetry":
+                    case "Repository":
+                        return RegisterServiceXML(serviceType, xmlRequest, true);
                     default:
                         _logger.LogError($"Unknown ServiceType: {serviceType}");
                         return Content(HTTPResponse.BadRequestXML.Replace("%MESSAGE%", $"Unknown ServiceType: {serviceType}"), "application/xml");
@@ -1147,7 +1246,7 @@ namespace XRCultureHub.Pages
             return Content(authorizationResponseXML.Replace("%SESSION_TOKEN%", authorizationRequest.SessionToken));
         }
 
-        private IActionResult RegisterViewerXML(XmlDocument xmlDoc)
+        private IActionResult RegisterViewerXML(XmlDocument xmlDoc, bool update)
         {
             if (xmlDoc == null)
             {
@@ -1192,10 +1291,21 @@ namespace XRCultureHub.Pages
                 return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Bad request: 'EndPoint'."));
             }
 
-            if (ViewersRegistry.IsViewerRegistered(_logger, _configuration, endPoint))
+            if (update)
             {
-                _logger.LogError($"Viewer is already registered 'Endpoint': {endPoint}");
-                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Viewer is already registered."));
+                if (!ViewersRegistry.IsViewerRegistered(_logger, _configuration, endPoint))
+                {
+                    _logger.LogError($"Viewer is not registered 'Endpoint': {endPoint}");
+                    return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Viewer is not registered."));
+                }
+            }
+            else
+            {
+                if (ViewersRegistry.IsViewerRegistered(_logger, _configuration, endPoint))
+                {
+                    _logger.LogError($"Viewer is already registered 'Endpoint': {endPoint}");
+                    return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Viewer is already registered."));
+                }
             }
 
             var backEnd = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/BackEnd")?.InnerXml;
@@ -1247,7 +1357,7 @@ namespace XRCultureHub.Pages
             return Content(registrationResponseXML.Replace("%SESSION_TOKEN%", sessionToken));
         }
 
-        private IActionResult RegisterViewerJSON(dynamic jsonDoc)
+        private IActionResult RegisterViewerJSON(dynamic jsonDoc, bool update)
         {
             if (jsonDoc == null)
             {
@@ -1320,10 +1430,21 @@ namespace XRCultureHub.Pages
                 return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Bad request: 'EndPoint'."), "application/json");
             }
 
-            if (ViewersRegistry.IsViewerRegistered(_logger, _configuration, endPoint))
+            if (update)
             {
-                _logger.LogError($"Viewer is already registered 'Endpoint': {endPoint}");
-                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Viewer is already registered."), "application/json");
+                if (!ViewersRegistry.IsViewerRegistered(_logger, _configuration, endPoint))
+                {
+                    _logger.LogError($"Viewer is not registered 'Endpoint': {endPoint}");
+                    return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Viewer is not registered."), "application/json");
+                }
+            }
+            else
+            {
+                if (ViewersRegistry.IsViewerRegistered(_logger, _configuration, endPoint))
+                {
+                    _logger.LogError($"Viewer is already registered 'Endpoint': {endPoint}");
+                    return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Viewer is already registered."), "application/json");
+                }
             }
 
             // Extract BackEnd from JSON - convert to XML string for storage
@@ -1405,7 +1526,7 @@ namespace XRCultureHub.Pages
             return Content(registrationResponseJSON, "application/json");
         }
 
-        private IActionResult RegisterServiceXML(string serviceType, XmlDocument xmlDoc)
+        private IActionResult RegisterServiceXML(string serviceType, XmlDocument xmlDoc, bool update)
         {
             if (xmlDoc == null)
             {
@@ -1451,10 +1572,21 @@ namespace XRCultureHub.Pages
                 return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Bad request: 'EndPoint'."));
             }
 
-            if (ServicesRegistry.IsServiceRegistered(_logger, _configuration, endPoint))
+            if (update)
             {
-                _logger.LogError($"Service is already registered 'Endpoint': {endPoint}");
-                return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Service is already registered."));
+                if (!ServicesRegistry.IsServiceRegistered(_logger, _configuration, endPoint))
+                {
+                    _logger.LogError($"Service is not registered 'Endpoint': {endPoint}");
+                    return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Service is not registered."));
+                }
+            }
+            else
+            {
+                if (ServicesRegistry.IsServiceRegistered(_logger, _configuration, endPoint))
+                {
+                    _logger.LogError($"Service is already registered 'Endpoint': {endPoint}");
+                    return Content(registrationResponseErrorXML.Replace("%MESSAGE%", "Service is already registered."));
+                }
             }
 
             var backEnd = xmlDoc.SelectSingleNode("/Protocol/RegistrationRequest/BackEnd")?.InnerXml;
@@ -1489,7 +1621,7 @@ namespace XRCultureHub.Pages
             xml.AppendLine($"\t<Id>{serviceId}</Id>");
             xml.AppendLine($"\t<ProviderId>{providerId}</ProviderId>");
             xml.AppendLine($"\t<ServiceName>{serviceName}</ServiceName>");
-            xml.AppendLine($"\t<ServiceType>{serviceType}</ServiceType>");            
+            xml.AppendLine($"\t<ServiceType>{serviceType}</ServiceType>");
             xml.AppendLine($"\t<EndPoint>{endPoint}</EndPoint>");
             xml.AppendLine($"\t<UploadEndPoint>{uploadEndpoint}</UploadEndPoint>");
             xml.AppendLine($"\t<BackEnd>{backEnd}</BackEnd>");
@@ -1500,7 +1632,7 @@ namespace XRCultureHub.Pages
             return Content(registrationResponseXML.Replace("%SESSION_TOKEN%", sessionToken));
         }
 
-        private IActionResult RegisterServiceJSON(string serviceType, dynamic jsonDoc)
+        private IActionResult RegisterServiceJSON(string serviceType, dynamic jsonDoc, bool update)
         {
             if (jsonDoc == null)
             {
@@ -1573,10 +1705,21 @@ namespace XRCultureHub.Pages
                 return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Bad request: 'EndPoint'."), "application/json");
             }
 
-            if (ServicesRegistry.IsServiceRegistered(_logger, _configuration, endPoint))
+            if (update)
             {
-                _logger.LogError($"Service is already registered 'Endpoint': {endPoint}");
-                return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Service is already registered."), "application/json");
+                if (!ServicesRegistry.IsServiceRegistered(_logger, _configuration, endPoint))
+                {
+                    _logger.LogError($"Service is not registered 'Endpoint': {endPoint}");
+                    return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Service is not registered."), "application/json");
+                }
+            }
+            else
+            {
+                if (ServicesRegistry.IsServiceRegistered(_logger, _configuration, endPoint))
+                {
+                    _logger.LogError($"Service is already registered 'Endpoint': {endPoint}");
+                    return Content(registrationResponseErrorJSON.Replace("%MESSAGE%", "Service is already registered."), "application/json");
+                }
             }
 
             // Extract SupportedOptions from JSON - convert to XML string for storage

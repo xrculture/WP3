@@ -40,6 +40,8 @@
             _buttonGetMeshFilters = new Button();
             _buttonGetPhotogrammetryServices = new Button();
             _buttonGetRepositories = new Button();
+            _buttonUpdate = new Button();
+            _buttonDelete = new Button();
             SuspendLayout();
             // 
             // _textBoxHubURL
@@ -61,9 +63,9 @@
             // _buttonRegister
             // 
             _buttonRegister.Enabled = false;
-            _buttonRegister.Location = new Point(483, 13);
+            _buttonRegister.Location = new Point(86, 42);
             _buttonRegister.Name = "_buttonRegister";
-            _buttonRegister.Size = new Size(120, 23);
+            _buttonRegister.Size = new Size(93, 23);
             _buttonRegister.TabIndex = 2;
             _buttonRegister.Text = "Register";
             _buttonRegister.UseVisualStyleBackColor = true;
@@ -73,7 +75,7 @@
             // 
             _buttonAuthorize.Location = new Point(348, 13);
             _buttonAuthorize.Name = "_buttonAuthorize";
-            _buttonAuthorize.Size = new Size(128, 23);
+            _buttonAuthorize.Size = new Size(93, 23);
             _buttonAuthorize.TabIndex = 3;
             _buttonAuthorize.Text = "Authorize";
             _buttonAuthorize.UseVisualStyleBackColor = true;
@@ -81,7 +83,7 @@
             // 
             // _textBoxLog
             // 
-            _textBoxLog.Location = new Point(11, 42);
+            _textBoxLog.Location = new Point(11, 73);
             _textBoxLog.Multiline = true;
             _textBoxLog.Name = "_textBoxLog";
             _textBoxLog.ReadOnly = true;
@@ -91,7 +93,7 @@
             // 
             // _buttonClose
             // 
-            _buttonClose.Location = new Point(609, 386);
+            _buttonClose.Location = new Point(609, 417);
             _buttonClose.Name = "_buttonClose";
             _buttonClose.Size = new Size(168, 23);
             _buttonClose.TabIndex = 5;
@@ -101,7 +103,7 @@
             // 
             // _buttonGetViewers
             // 
-            _buttonGetViewers.Location = new Point(609, 42);
+            _buttonGetViewers.Location = new Point(609, 73);
             _buttonGetViewers.Name = "_buttonGetViewers";
             _buttonGetViewers.Size = new Size(168, 23);
             _buttonGetViewers.TabIndex = 8;
@@ -111,7 +113,7 @@
             // 
             // _buttonGetConvertors
             // 
-            _buttonGetConvertors.Location = new Point(609, 100);
+            _buttonGetConvertors.Location = new Point(609, 131);
             _buttonGetConvertors.Name = "_buttonGetConvertors";
             _buttonGetConvertors.Size = new Size(168, 23);
             _buttonGetConvertors.TabIndex = 9;
@@ -121,7 +123,7 @@
             // 
             // _buttonGetThumbnailGenerators
             // 
-            _buttonGetThumbnailGenerators.Location = new Point(609, 71);
+            _buttonGetThumbnailGenerators.Location = new Point(609, 102);
             _buttonGetThumbnailGenerators.Name = "_buttonGetThumbnailGenerators";
             _buttonGetThumbnailGenerators.Size = new Size(168, 23);
             _buttonGetThumbnailGenerators.TabIndex = 10;
@@ -131,7 +133,7 @@
             // 
             // _buttonGetMeshFilters
             // 
-            _buttonGetMeshFilters.Location = new Point(609, 129);
+            _buttonGetMeshFilters.Location = new Point(609, 160);
             _buttonGetMeshFilters.Name = "_buttonGetMeshFilters";
             _buttonGetMeshFilters.Size = new Size(168, 23);
             _buttonGetMeshFilters.TabIndex = 11;
@@ -141,7 +143,7 @@
             // 
             // _buttonGetPhotogrammetryServices
             // 
-            _buttonGetPhotogrammetryServices.Location = new Point(609, 158);
+            _buttonGetPhotogrammetryServices.Location = new Point(609, 189);
             _buttonGetPhotogrammetryServices.Name = "_buttonGetPhotogrammetryServices";
             _buttonGetPhotogrammetryServices.Size = new Size(168, 23);
             _buttonGetPhotogrammetryServices.TabIndex = 12;
@@ -151,7 +153,7 @@
             // 
             // _buttonGetRepositories
             // 
-            _buttonGetRepositories.Location = new Point(609, 187);
+            _buttonGetRepositories.Location = new Point(609, 218);
             _buttonGetRepositories.Name = "_buttonGetRepositories";
             _buttonGetRepositories.Size = new Size(168, 23);
             _buttonGetRepositories.TabIndex = 13;
@@ -159,13 +161,37 @@
             _buttonGetRepositories.UseVisualStyleBackColor = true;
             _buttonGetRepositories.Click += _buttonGetRepositories_Click;
             // 
+            // _buttonUpdate
+            // 
+            _buttonUpdate.Enabled = false;
+            _buttonUpdate.Location = new Point(185, 42);
+            _buttonUpdate.Name = "_buttonUpdate";
+            _buttonUpdate.Size = new Size(93, 23);
+            _buttonUpdate.TabIndex = 14;
+            _buttonUpdate.Text = "Update";
+            _buttonUpdate.UseVisualStyleBackColor = true;
+            _buttonUpdate.Click += _buttonUpdate_Click;
+            // 
+            // _buttonDelete
+            // 
+            _buttonDelete.Enabled = false;
+            _buttonDelete.Location = new Point(348, 44);
+            _buttonDelete.Name = "_buttonDelete";
+            _buttonDelete.Size = new Size(93, 23);
+            _buttonDelete.TabIndex = 15;
+            _buttonDelete.Text = "Delete";
+            _buttonDelete.UseVisualStyleBackColor = true;
+            _buttonDelete.Click += _buttonDelete_Click;
+            // 
             // RegisterViewerForm
             // 
             AcceptButton = _buttonClose;
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(783, 417);
+            ClientSize = new Size(787, 451);
             ControlBox = false;
+            Controls.Add(_buttonDelete);
+            Controls.Add(_buttonUpdate);
             Controls.Add(_buttonGetRepositories);
             Controls.Add(_buttonGetPhotogrammetryServices);
             Controls.Add(_buttonGetMeshFilters);
@@ -202,5 +228,7 @@
         private Button _buttonGetMeshFilters;
         private Button _buttonGetPhotogrammetryServices;
         private Button _buttonGetRepositories;
+        private Button _buttonUpdate;
+        private Button _buttonDelete;
     }
 }

@@ -35,6 +35,8 @@ namespace XRCultureRegisterTool
             // Reset the session token and button state
             SessionToken = null;
             _buttonRegister.Enabled = false;
+            _buttonUpdate.Enabled = false;
+            _buttonDelete.Enabled = false;
             _textBoxLog.Text = string.Empty;
 
             // Validate the Hub URL input
@@ -112,6 +114,8 @@ namespace XRCultureRegisterTool
                             {
                                 SessionToken = (string?)jsonResponse?.SessionToken;
                                 _buttonRegister.Enabled = !string.IsNullOrEmpty(SessionToken);
+                                _buttonUpdate.Enabled = !string.IsNullOrEmpty(SessionToken);
+                                _buttonDelete.Enabled = !string.IsNullOrEmpty(SessionToken);
                             }
                             else
                             {
@@ -132,6 +136,8 @@ namespace XRCultureRegisterTool
                             {
                                 SessionToken = xmlDoc.SelectSingleNode("//SessionToken")?.InnerText;
                                 _buttonRegister.Enabled = !string.IsNullOrEmpty(SessionToken);
+                                _buttonUpdate.Enabled = !string.IsNullOrEmpty(SessionToken);
+                                _buttonDelete.Enabled = !string.IsNullOrEmpty(SessionToken);
                             }
                             else
                             {
@@ -260,6 +266,242 @@ namespace XRCultureRegisterTool
 
                 SessionToken = null;
                 _buttonRegister.Enabled = false;
+                _buttonUpdate.Enabled = false;
+                _buttonDelete.Enabled = false;
+            }
+        }
+
+        private async void _buttonUpdate_Click(object sender, EventArgs e)
+        {
+            // Validate the Hub URL input
+            if (string.IsNullOrWhiteSpace(_textBoxHubURL.Text))
+            {
+                MessageBox.Show("Please enter the Hub URL.");
+                return;
+            }
+
+            // Validate the Hub URL
+            if (!Uri.TryCreate(_textBoxHubURL.Text, UriKind.Absolute, out Uri? hubUri) || !hubUri.IsWellFormedOriginalString())
+            {
+                MessageBox.Show("Please enter a valid Hub URL.");
+                return;
+            }
+            // Check if the scheme is either http or https
+            if (!hubUri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) &&
+                !hubUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("Please enter a valid Hub URL with http or https scheme.");
+                return;
+            }
+
+            var openFileDialog = new OpenFileDialog()
+            {
+                FileName = "XML/JSON file",
+                Filter = "XML files (*.xml)|*.xml|JSON files (*.json)|*.json",
+                Title = "Open JSON/XML file"
+            };
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    bool bJSONContent = openFileDialog.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+                    if (!bJSONContent && !openFileDialog.FileName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+                    {
+                        MessageBox.Show("Please select a valid XML or JSON file.");
+                        return;
+                    }
+
+                    var streamReader = new StreamReader(openFileDialog.FileName);
+                    var registerRequest = streamReader.ReadToEnd();
+                    registerRequest = registerRequest.Replace("%SESSION_TOKEN%", SessionToken ?? string.Empty);
+                    if (!bJSONContent)
+                    {
+                        registerRequest = JsonConvert.SerializeObject(registerRequest, Newtonsoft.Json.Formatting.Indented);
+                    }
+
+                    using (HttpClient client = new HttpClient())
+                    {
+                        var url = _textBoxHubURL.Text + "Registry";
+                        var content = new StringContent(registerRequest, Encoding.UTF8,
+                            bJSONContent ? "application/json" : "application/xml");
+
+                        HttpResponseMessage response = await client.PutAsync(url, content);
+
+                        string responseString = await response.Content.ReadAsStringAsync();
+                        if (string.IsNullOrEmpty(responseString))
+                        {
+                            throw new Exception("Empty response from the server.");
+                        }
+
+                        _textBoxLog.Text = responseString;
+
+                        if (bJSONContent)
+                        {
+                            //
+                            // JSON response handling
+                            //
+
+                            dynamic jsonResponse = JsonConvert.DeserializeObject(responseString);
+
+                            var status = jsonResponse?.Status;
+                            if (jsonResponse?.Status == "200")
+                            {
+                                MessageBox.Show("Viewer successfully registered.");
+                            }
+                            else
+                            {
+                                throw new Exception($"Registration failed. Status: {status}");
+                            }
+                        }
+                        else
+                        {
+                            //
+                            // XML response handling
+                            // 
+
+                            XmlDocument xmlDoc = new XmlDocument();
+                            xmlDoc.LoadXml(responseString);
+
+                            var status = xmlDoc.SelectSingleNode("//Status")?.InnerText;
+                            if (status?.Trim() == "200")
+                            {
+                                MessageBox.Show("Service successfully updated.");
+                            }
+                            else
+                            {
+                                throw new Exception($"Update failed. Status: {status}");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error:\n{ex.Message}\n" +
+                        $"Details:\n{ex.StackTrace}");
+                }
+
+                SessionToken = null;
+                _buttonRegister.Enabled = false;
+                _buttonUpdate.Enabled = false;
+                _buttonDelete.Enabled = false;
+            }
+        }
+
+        private async void _buttonDelete_Click(object sender, EventArgs e)
+        {
+            // Validate the Hub URL input
+            if (string.IsNullOrWhiteSpace(_textBoxHubURL.Text))
+            {
+                MessageBox.Show("Please enter the Hub URL.");
+                return;
+            }
+
+            // Validate the Hub URL
+            if (!Uri.TryCreate(_textBoxHubURL.Text, UriKind.Absolute, out Uri? hubUri) || !hubUri.IsWellFormedOriginalString())
+            {
+                MessageBox.Show("Please enter a valid Hub URL.");
+                return;
+            }
+            // Check if the scheme is either http or https
+            if (!hubUri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) &&
+                !hubUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("Please enter a valid Hub URL with http or https scheme.");
+                return;
+            }
+
+            var openFileDialog = new OpenFileDialog()
+            {
+                FileName = "XML/JSON file",
+                Filter = "XML files (*.xml)|*.xml|JSON files (*.json)|*.json",
+                Title = "Open JSON/XML file"
+            };
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    bool bJSONContent = openFileDialog.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+                    if (!bJSONContent && !openFileDialog.FileName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+                    {
+                        MessageBox.Show("Please select a valid XML or JSON file.");
+                        return;
+                    }
+
+                    var streamReader = new StreamReader(openFileDialog.FileName);
+                    var registerRequest = streamReader.ReadToEnd();
+                    registerRequest = registerRequest.Replace("%SESSION_TOKEN%", SessionToken ?? string.Empty);
+                    if (!bJSONContent)
+                    {
+                        registerRequest = JsonConvert.SerializeObject(registerRequest, Newtonsoft.Json.Formatting.Indented);
+                    }
+
+                    using (HttpClient client = new HttpClient())
+                    {
+                        var url = _textBoxHubURL.Text + "Registry";
+                        var content = new StringContent(registerRequest, Encoding.UTF8,
+                            bJSONContent ? "application/json" : "application/xml");
+
+                        HttpResponseMessage response = await client.PutAsync(url, content);
+
+                        string responseString = await response.Content.ReadAsStringAsync();
+                        if (string.IsNullOrEmpty(responseString))
+                        {
+                            throw new Exception("Empty response from the server.");
+                        }
+
+                        _textBoxLog.Text = responseString;
+
+                        if (bJSONContent)
+                        {
+                            //
+                            // JSON response handling
+                            //
+
+                            dynamic jsonResponse = JsonConvert.DeserializeObject(responseString);
+
+                            var status = jsonResponse?.Status;
+                            if (jsonResponse?.Status == "200")
+                            {
+                                MessageBox.Show("Viewer successfully registered.");
+                            }
+                            else
+                            {
+                                throw new Exception($"Registration failed. Status: {status}");
+                            }
+                        }
+                        else
+                        {
+                            //
+                            // XML response handling
+                            // 
+
+                            XmlDocument xmlDoc = new XmlDocument();
+                            xmlDoc.LoadXml(responseString);
+
+                            var status = xmlDoc.SelectSingleNode("//Status")?.InnerText;
+                            if (status?.Trim() == "200")
+                            {
+                                MessageBox.Show("Service successfully updated.");
+                            }
+                            else
+                            {
+                                throw new Exception($"Update failed. Status: {status}");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error:\n{ex.Message}\n" +
+                        $"Details:\n{ex.StackTrace}");
+                }
+
+                SessionToken = null;
+                _buttonRegister.Enabled = false;
+                _buttonUpdate.Enabled = false;
+                _buttonDelete.Enabled = false;
             }
         }
 
@@ -474,7 +716,7 @@ namespace XRCultureRegisterTool
                 .Replace("\r\n", "\n")
                 .Replace("\r", "\n")
                 .Replace("\n", "\r\n");
-        }        
+        }
 
         private string? SessionToken { get; set; } = "e3be7cc2-3a7e-45e6-9a88-bd364e6de740";
     }
