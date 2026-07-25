@@ -85,7 +85,7 @@ namespace XRCulture3DReconstruction.Workflows
                     await LogMessage("*** Refining Mesh started...");
 
                     var exePath = Configuration[$"{toolPaths}:OpenMVS"] + (isLinuxPlatform ? "/RefineMesh" : @"\RefineMesh.exe");
-                    var args = $"--working-folder {inputDir} --input-file {inputDir}{sep}model_dense_mesh.mvs";
+                    var args = $"--working-folder {inputDir} --input-file {inputDir}{sep}model_dense_mesh.mvs --max-threads 8";
 
                     var exitCode = ExecuteProcess(exePath, args);
                     if (exitCode != 0)
