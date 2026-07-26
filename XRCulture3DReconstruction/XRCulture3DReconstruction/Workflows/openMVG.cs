@@ -106,10 +106,23 @@ namespace XRCulture3DReconstruction.Workflows
             }
 
             {
+                /*
+                [--triangulation_method] triangulation method (default=3):
+                    0: DIRECT_LINEAR_TRANSFORM
+                    1: L1_ANGULAR
+                    2: LINFINITY_ANGULAR
+                    3: INVERSE_DEPTH_WEIGHTED_MIDPOINT
+                [--resection_method] resection/pose estimation method (default=3):
+                    0: DIRECT_LINEAR_TRANSFORM 6Points | does not use intrinsic data
+                    1: P3P_KE_CVPR17
+                    2: P3P_KNEIP_CVPR11
+                    3: P3P_NORDBERG_ECCV18
+                    4: UP2P_KUKELOVA_ACCV10 | 2Points | upright camera
+                 */
                 await LogMessage("*** Reconstruction (INCREMENTAL) started...");
 
                 var exePath = Configuration[$"{toolPaths}:OpenMVG"] + (isLinuxPlatform ? "/openMVG_main_SfM" : @"\openMVG_main_SfM.exe");
-                var args = $"--sfm_engine \"INCREMENTAL\" --input_file {inputDir}{sep}matches{sep}sfm_data.json --match_dir {inputDir}{sep}matches --output_dir {inputDir}{sep}reconstruction --resection_method 2";
+                var args = $"--sfm_engine \"INCREMENTAL\" --input_file {inputDir}{sep}matches{sep}sfm_data.json --match_dir {inputDir}{sep}matches --output_dir {inputDir}{sep}reconstruction --triangulation_method 2 --resection_method 2";
                 var exitCode = ExecuteProcess(exePath, args);
                 if (exitCode != 0)
                 {
