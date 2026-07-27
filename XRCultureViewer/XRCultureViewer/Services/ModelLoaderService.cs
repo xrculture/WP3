@@ -451,8 +451,8 @@ namespace XRCultureViewer.Services
             xml.AppendLine("<Model>");
             xml.AppendLine($"\t<Id>{resultId}</Id>");
             xml.AppendLine($"\t<Extension>{fileExtension}</Extension>");
-            xml.AppendLine($"\t<Name>{name}</Name>");
-            xml.AppendLine($"\t<Description>{description}</Description>");
+            xml.AppendLine($"\t<Name><![CDATA[{name}]]></Name>");
+            xml.AppendLine($"\t<Description><![CDATA[{description}]]></Description>");
             xml.AppendLine($"\t<TimeStamp>{DateTime.Now:yyyy-MM-dd HH:mm:ss}</TimeStamp>");
             xml.AppendLine("</Model>");
             System.IO.File.WriteAllText(Path.Combine(modelsDir, $"{resultId}.xml"), xml.ToString());
