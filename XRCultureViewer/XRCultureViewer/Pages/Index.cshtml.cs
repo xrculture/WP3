@@ -79,7 +79,15 @@ namespace XRCultureViewer.Pages
                 _logger.LogInformation($"Found model: {fileInfo.Name} at {fileInfo.PhysicalPath}");
 
                 XmlDocument xmlDoc = new XmlDocument();
-                xmlDoc.Load(fileInfo.PhysicalPath!);
+                try
+                {
+                    xmlDoc.Load(fileInfo.PhysicalPath!);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex.Message);
+                    continue;
+                }
 
                 var modelId = xmlDoc.SelectSingleNode("//Model/Id")?.InnerText ?? "NA";
                 var modelExtension = xmlDoc.SelectSingleNode("//Model/Extension")?.InnerText ?? "NA";
