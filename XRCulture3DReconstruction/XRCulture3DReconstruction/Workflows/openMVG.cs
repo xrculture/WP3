@@ -122,7 +122,7 @@ namespace XRCulture3DReconstruction.Workflows
                 await LogMessage("*** Reconstruction (INCREMENTAL) started...");
 
                 var exePath = Configuration[$"{toolPaths}:OpenMVG"] + (isLinuxPlatform ? "/openMVG_main_SfM" : @"\openMVG_main_SfM.exe");
-                var args = $"--sfm_engine \"INCREMENTAL\" --input_file {inputDir}{sep}matches{sep}sfm_data.json --match_dir {inputDir}{sep}matches --output_dir {inputDir}{sep}reconstruction --triangulation_method 2 --resection_method 2";
+                var args = $"--sfm_engine \"INCREMENTAL\" --input_file {inputDir}{sep}matches{sep}sfm_data.json --match_dir {inputDir}{sep}matches --output_dir {inputDir}{sep}reconstruction --refine_extrinsic_config NONE --triangulation_method 2 --resection_method 2";
                 var exitCode = ExecuteProcess(exePath, args);
                 if (exitCode != 0)
                 {
