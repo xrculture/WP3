@@ -43,7 +43,7 @@ namespace Europeana3D.Web.Services
             filters.Element("SearchQuery")!.Value = query;
             filters.Element("AccessToken")!.Value = apikey;
 
-            root.Element("ServiceUrl")!.Value = "https://zenodo.org/api/records/";
+            root.Element("ServiceUrl")!.Value = "https://zenodo.org/api/records";
 
             // --- Save the finalized XML to Resources before making the HTTP call ---
             _xml.SaveLocalXML(tmpl, Path.Combine(AppContext.BaseDirectory, "Resources"), "ModelRequest");
@@ -92,10 +92,16 @@ namespace Europeana3D.Web.Services
             var pageSize = string.IsNullOrEmpty(token) ? 25 : 100;
             var requestUrl = $"{serviceUrl}?q={encodedQ}&size={pageSize}";
             if (!string.IsNullOrEmpty(token))
-                requestUrl += $"&access_token={token}";
+                requestUrl = $"{serviceUrl}/{encodedQ}?access_token={token}";
 
 
-            using var resp = await _httpClient.GetAsync(requestUrl);
+            var httpReq = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+            httpReq.Headers.TryAddWithoutValidation("Accept", "application/json");
+            httpReq.Headers.TryAddWithoutValidation("User-Agent", "XRCultureClientApp/1.0");
+            if (!string.IsNullOrEmpty(token))
+                httpReq.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+
+            using var resp = await _httpClient.SendAsync(httpReq);
             if (!resp.IsSuccessStatusCode)
             {
                 var errStatus = (int)resp.StatusCode;
@@ -114,10 +120,20 @@ namespace Europeana3D.Web.Services
             var regexExt = new Regex(@"\.(" + supportedPattern + ")$", RegexOptions.IgnoreCase);
             var previewRegexExt = new Regex(@"\.(jpeg|jpg|png|bmp)$", RegexOptions.IgnoreCase);
 
+            var root = doc.RootElement;
             // Zenodo returns hits either as root.hits.hits[] (legacy) or root.hits[] (v2).
-            if (!doc.RootElement.TryGetProperty("hits", out var hitsRoot))
+            if (string.IsNullOrEmpty(token) & !root.TryGetProperty("hits", out var hitsRoot))
             {
                 response = new ModelResponse { Status = 200, Message = "No results", EuropeanaItems = output };
+                var ser1 = new XmlSerializer(typeof(ModelResponse));
+                using var sw1 = new StringWriter();
+                ser1.Serialize(sw1, response);
+                return XDocument.Parse(sw1.ToString());
+            }
+
+            if (!string.IsNullOrEmpty(token) & !root.TryGetProperty("id", out var elId))
+            {
+                response = new ModelResponse { Status = 200, Message = $"The identifier {encodedQ} was not found.", EuropeanaItems = output };
                 var ser1 = new XmlSerializer(typeof(ModelResponse));
                 using var sw1 = new StringWriter();
                 ser1.Serialize(sw1, response);
@@ -127,15 +143,20 @@ namespace Europeana3D.Web.Services
             JsonElement hitsArray;
             if (hitsRoot.ValueKind == JsonValueKind.Array)
                 hitsArray = hitsRoot;
-            else if (hitsRoot.TryGetProperty("hits", out var nested) && nested.ValueKind == JsonValueKind.Array)
+            else if (hitsRoot.ValueKind != JsonValueKind.Undefined && hitsRoot.TryGetProperty("hits", out var nested) && nested.ValueKind == JsonValueKind.Array)
                 hitsArray = nested;
             else
             {
+                var wrapper = new System.Text.Json.Nodes.JsonArray(
+                    System.Text.Json.Nodes.JsonNode.Parse(root.GetRawText()));
+                hitsArray = JsonSerializer.SerializeToElement(wrapper);
+                /*
                 response = new ModelResponse { Status = 200, Message = "No results", EuropeanaItems = output };
                 var ser2 = new XmlSerializer(typeof(ModelResponse));
                 using var sw2 = new StringWriter();
                 ser2.Serialize(sw2, response);
                 return XDocument.Parse(sw2.ToString());
+                */
             }
 
             foreach (var hit in hitsArray.EnumerateArray())
@@ -146,10 +167,12 @@ namespace Europeana3D.Web.Services
                 string? recordId = null;
                 string? title = null;
 
-                // Extract record id
-                if (hit.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.Number)
+                // Extract record id (string in new Zenodo API, number in legacy)
+                if (hit.TryGetProperty("id", out var idProp))
                 {
-                    recordId = idProp.ToString();
+                    recordId = idProp.ValueKind == JsonValueKind.String
+                        ? idProp.GetString()
+                        : idProp.ToString();
                 }
 
                 // Extract title from metadata.title
@@ -194,6 +217,7 @@ namespace Europeana3D.Web.Services
                                 dlProp.ValueKind == JsonValueKind.String)
                             {
                                 downloadUrl = dlProp.GetString();
+                                if (!string.IsNullOrEmpty(token)) downloadUrl += $"?access_token={token}";
                             }
                         }
 

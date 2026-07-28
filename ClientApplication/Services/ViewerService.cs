@@ -89,9 +89,10 @@ namespace Europeana3D.Web.Services
             if (!string.IsNullOrEmpty(modelUrl))
             {
                 var urlSrc = src.Element("UrlSource")!;
-                urlSrc.Element("FileExtension")!.Value = ext;
+                urlSrc.Element("FileExtension")!.Value = ext ?? "";
                 urlSrc.Element("FileDimension")!.Value = (contentLength ?? 0).ToString();
                 urlSrc.Element("Url")!.Value = modelUrl; // direct URL
+                src.Element("LocalSource")!.Remove();
             } else if (fileContent != null)
             {
                 var localSrc = src.Element("LocalSource")!;
@@ -101,7 +102,7 @@ namespace Europeana3D.Web.Services
                 localSrc.SetAttributeValue("name", fileContent.Name);
                 localSrc.SetAttributeValue("description", fileContent.Description ?? String.Empty);
                 localSrc.Value = fileContent.Base64Data ?? String.Empty;
-
+                src.Element("UrlSource")!.Remove();
             }
             else
             {
