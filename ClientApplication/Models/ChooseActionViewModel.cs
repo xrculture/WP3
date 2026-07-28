@@ -19,6 +19,11 @@
         // Viewer selection
         public List<ViewerOption> Viewers { get; set; } = new();
         public string? SelectedViewerProviderId { get; set; }
+
+        // Set when item comes from a Zenodo record (enables metadata button)
+        public string? ZenodoRecordId { get; set; }
+        public string? AccessToken { get; set; }
+
     }
 
     public record ViewerOption(string ProviderID, string DisplayName, bool oEmbed = false);
