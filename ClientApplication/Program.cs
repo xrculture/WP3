@@ -37,6 +37,7 @@ builder.Services.AddScoped<ZenodoService>();
 builder.Services.AddScoped<Europeana3D.Web.Services.RepositoryService>();
 builder.Services.AddScoped<Europeana3D.Web.Services.ZenodoUploadService>();
 builder.Services.AddScoped<Europeana3D.Web.Services.S3UploadService>();
+builder.Services.AddScoped<Europeana3D.Web.Services.ZenodoCsvService>();
 builder.Services.AddControllers(
     options => options.InputFormatters.Add(new PlainTextFormatter())
     );

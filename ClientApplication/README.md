@@ -1,6 +1,6 @@
 # XRCulture Middleware Demo
 
-Reference client implementation of the [XRCulture Middleware protocol](https://github.com/peterrdf/xrculture) (D3.1). Built with ASP.NET Core 6 MVC.
+Reference client implementation of the [XRCulture Middleware protocol](https://github.com/xrculture/protocol). Built with ASP.NET Core 6 MVC.
 
 ## What it does
 
@@ -11,10 +11,11 @@ The application is composed of three independent sub-applications sharing a sing
 | **Custom UI** | Web frontend — search, browse results, select file, dispatch to viewer |
 | **Repository connectors** | Europeana, Zenodo, Amazon S3 — search and retrieve 3D models |
 | **Viewer connector** | Queries the XRCulture Hub registry, filters viewers by format, posts `ModelLoading` requests |
+| **Metadata viewer** | Fetches and displays Dublin Core metadata from a Zenodo-hosted CSV index |
 
 ### Supported 3D formats
 
-`.obj` `.ifc` `.dae` `.glb`
+`.obj` `.ifc` `.dae` `.glb` `.ply`
 
 ## Architecture
 
@@ -23,6 +24,7 @@ Browser
   └─ HomeController (MVC)
        ├─ BridgeService      → Europeana Search API
        ├─ ZenodoService      → Zenodo Records API
+       ├─ ZenodoCsvService   → Zenodo-hosted metadata CSV (pid lookup, thumb probe)
        ├─ S3Service          → Amazon S3 / MinIO
        └─ ViewerService      → Hub Registry + ModelLoading dispatch
 
@@ -31,6 +33,9 @@ ConnectorController (REST API — /api/connector/*)
        ├─ POST search-zenodo
        ├─ POST search-amazon
        └─ POST upload             multipart: XML manifest + optional file → Zenodo or S3
+
+ConversionController (REST API — /api/conversion/*)
+       └─ GET display-model       resolves pid → redirects to ModelMetadata view
 ```
 
 The search connectors all produce `ModelResponse` XML (the protocol message defined in D3.1), saved locally under `Resources/` for inspection.
@@ -43,7 +48,11 @@ Edit `appsettings.json`:
 {
   "Options": {
     "EuropeanaApiKey": "<your-europeana-api-key>",
-    "SupportedFormats": "obj|ifc|dae|glb"
+    "SupportedFormats": "obj|ifc|dae|glb|ply",
+    "MetadataCsvFilename": [ "AMI_metadata_index.csv", "MIC_metadata_index.csv", "metadata_index.csv" ],
+    "CsvPidField":      "edm:pid",
+    "CsvTitleField":    "dc:title (object name)",
+    "CsvModelUrlField": "edm:isShownBy"
   },
   "AWS": {
     "Region": "eu-west-1",
@@ -56,6 +65,19 @@ Edit `appsettings.json`:
   }
 }
 ```
+
+### Options reference
+
+| Key | Type | Description |
+|---|---|---|
+| `EuropeanaApiKey` | string | Europeana REST API key |
+| `SupportedFormats` | string | Pipe-separated list of allowed 3D extensions |
+| `MetadataCsvFilename` | string array | Ordered list of CSV filenames to probe in a Zenodo record; the first one found is used |
+| `CsvPidField` | string | CSV column name that holds the object PID (default: `edm:pid`) |
+| `CsvTitleField` | string | CSV column name used as display title in the metadata view |
+| `CsvModelUrlField` | string | CSV column name that holds the 3D model URL |
+
+`MetadataCsvFilename` can also be a single string for backwards compatibility.
 
 Set `Viewers.Source` to `local` to use the bundled `Resources/Viewers.xml` instead of the live registry.
 
@@ -149,6 +171,8 @@ The image is published automatically on every push to `main`/`master` and on ver
 
 ## API endpoints
 
+### Connector API (`/api/connector/*`)
+
 All endpoints accept and return the XRCulture protocol XML messages.
 
 | Method | Path | Input | Output |
@@ -160,6 +184,23 @@ All endpoints accept and return the XRCulture protocol XML messages.
 
 The upload endpoint routes to Zenodo or S3 based on the `TargetRepository/ServiceID` element (`zenodo` or `s3`). A source URL may be supplied instead of a file part.
 
+### Conversion API (`/api/conversion/*`)
+
+| Method | Path | Query parameters | Description |
+|---|---|---|---|
+| GET | `/api/conversion/display-model` | `recordId`, `pid`, `accessToken`\* | Looks up `pid` in the Zenodo record's metadata CSV and redirects to the `ModelMetadata` view |
+
+`accessToken` is optional; when supplied it is forwarded to all Zenodo file requests and propagated to the redirected view.
+
+### MVC helper endpoints (`/Home/*`)
+
+| Method | Path | Query parameters | Description |
+|---|---|---|---|
+| GET | `/Home/CheckMetadata` | `zenodoRecordId`, `accessToken`\* | Server-side proxy: returns `true`/`false` JSON indicating whether a metadata CSV exists in the record |
+| GET | `/Home/ModelMetadata` | `zenodoRecordId`, `pid`, `accessToken`\* | Renders the metadata view for a given PID |
+
+`CheckMetadata` exists as a server-side proxy because browsers cannot perform cross-origin HEAD requests to `zenodo.org` from an HTTPS page.
+
 ## Project context
 
-Part of the XRCulture project (Digital Europe, Grant Agreement 101174317). Documented in deliverable D3.2 — *Web viewers and tools compliant with the XRCulture Middleware protocol*.
+Part of the XRCulture project (Digital Europe, Grant Agreement 101174317).
