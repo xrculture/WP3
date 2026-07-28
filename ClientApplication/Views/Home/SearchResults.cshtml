@@ -27,6 +27,19 @@
             return named ?? segs.LastOrDefault() ?? url;
         } catch { return url; }
     }
+
+    // Returns the preview whose filename starts with the same base name as the chosen model file.
+    // Falls back to item.Preview when no match is found or when there is only one preview.
+    string PickPreview(Europeana3D.Web.Models.EuropeanaItem item, string fileUrl) {
+        if (item.Previews.Count <= 1) return item.Preview ?? "";
+
+        var baseName = System.IO.Path.GetFileNameWithoutExtension(DisplayFilename(fileUrl));
+
+        return item.Previews.FirstOrDefault(p => {
+            var fname = DisplayFilename(p);
+            return fname.StartsWith(baseName, StringComparison.OrdinalIgnoreCase);
+        }) ?? item.Preview ?? "";
+    }
 }
 
 
@@ -128,10 +141,18 @@
                         <form method="get" action="~/Home/ChooseAction">
                             <input type="hidden" name="id" value="@it.Id" />
                             <input type="hidden" name="title" value="@it.Title" />
-                            <input type="hidden" name="preview" value="@it.Preview" />
+                            <input type="hidden" name="preview" value="@PickPreview(it, f.Url)" />
                             <input type="hidden" name="url" value="@f.Url" />
                             <input type="hidden" name="size" value="@f.ContentLength" />
                             <input type="hidden" name="extension" value="@f.Extension" />
+                            @if (repo.Equals("Zenodo", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <input type="hidden" name="zenodoRecordId" value="@it.Id" />
+                                @if (!string.IsNullOrEmpty(ViewData["accessToken"] as string))
+                                {
+                                    <input type="hidden" name="accessToken" value="@ViewData["accessToken"]" />
+                                }
+                            }
                             <button type="submit" class="w-100">
                                 <span class="w-50">@DisplayFilename(f.Url)</span>
                                 @if (f.ContentLength.HasValue)

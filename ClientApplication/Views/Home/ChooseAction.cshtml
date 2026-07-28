@@ -100,7 +100,51 @@
             }
         </div>
 
-
-        <button type="submit" style="margin-top:1.5rem">Proceed</button>
+        <div style="margin-top:1.5rem">
+            <button type="submit" >Proceed</button>
+            @if (!string.IsNullOrEmpty(Model.ZenodoRecordId))
+            {
+                    <button type="button" id="btn-metadata"
+                            style="display:none;padding:.45rem 1rem;border:1px solid #6366f1;background:transparent;color:#6366f1;border-radius:var(--radius-md);cursor:pointer;font-size:.9rem;float:inline-end;">
+                        View Metadata
+                    </button>
+            }
+        </div>
+        
     </form>
 </div>
+
+@if (!string.IsNullOrEmpty(Model.ZenodoRecordId))
+{
+    <script>
+    (function () {
+        const zenodoRecordId = @Json.Serialize(Model.ZenodoRecordId);
+        const selectedUrl = @Json.Serialize(Model.SelectedUrl ?? "");
+        const checkMetadataUrl = @Json.Serialize(Url.Action("CheckMetadata", "Home", new { zenodoRecordId = Model.ZenodoRecordId, accessToken = Model.AccessToken }));
+        const modelMetadataBaseUrl = @Json.Serialize(Url.Action("ModelMetadata", "Home", new { zenodoRecordId = Model.ZenodoRecordId, accessToken = Model.AccessToken }));
+
+        const btnMeta = document.getElementById('btn-metadata');
+        if (!btnMeta || !zenodoRecordId) return;
+
+        function pidFromUrl(url) {
+            const m = url.match(/\/files\/([^/?#]+?)(?:\/content)?(?:[?#]|$)/i);
+            if (!m) return '';
+            const filename = decodeURIComponent(m[1]);
+            const dot = filename.lastIndexOf('.');
+            return dot > 0 ? filename.substring(0, dot) : filename;
+        }
+
+        const pid = pidFromUrl(selectedUrl);
+        if (!pid) return;
+
+        fetch(checkMetadataUrl)
+            .then(function (r) { return r.json(); })
+            .then(function (exists) { if (exists) btnMeta.style.display = ''; })
+            .catch(function () {});
+
+        btnMeta.addEventListener('click', function () {
+            window.open(modelMetadataBaseUrl + '&pid=' + encodeURIComponent(pid), '_blank');
+        });
+    })();
+    </script>
+}

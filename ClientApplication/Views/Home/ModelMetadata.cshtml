@@ -1,0 +1,307 @@
+@model Europeana3D.Web.Models.ModelMetadataViewModel
+@{
+    ViewData["Title"] = Model.Title ?? Model.Pid;
+    Layout = "_Layout";
+    if (Model.LandingPage) ViewData["HideNav"] = true;
+}
+
+@if (!Model.LandingPage)
+{
+    // ── simple table view (unchanged, used by ChooseAction btn-metadata) ──────
+    <div style="max-width:900px;margin:2rem auto;padding:0 1rem;">
+
+        <h2 style="margin-bottom:1rem;">@(Model.Title ?? Model.Pid)</h2>
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:.5rem;padding:1rem;color:#b91c1c;">
+                @Model.ErrorMessage
+            </div>
+        }
+        else
+        {
+            @if (!string.IsNullOrEmpty(Model.ThumbUrl))
+            {
+                <div style="text-align:center;margin-bottom:1.5rem;">
+                    <img src="@Model.ThumbUrl" alt="Thumbnail"
+                         style="max-height:350px;max-width:100%;border-radius:.5rem;box-shadow:0 2px 12px rgba(0,0,0,.15);" />
+                </div>
+            }
+
+            <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:.5rem .75rem;border-bottom:2px solid var(--border, #e2e8f0);width:35%;">Field</th>
+                        <th style="text-align:left;padding:.5rem .75rem;border-bottom:2px solid var(--border, #e2e8f0);">Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (col, val) in Model.Fields)
+                    {
+                        <tr>
+                            <td style="padding:.4rem .75rem;border-bottom:1px solid var(--border, #e2e8f0);color:var(--text-dim,#64748b);font-family:monospace;font-size:.82rem;vertical-align:top;">@col</td>
+                            <td style="padding:.4rem .75rem;border-bottom:1px solid var(--border, #e2e8f0);word-break:break-word;">@val</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+    </div>
+}
+else
+{
+    // ── landing page view (used by ConversionController display-model) ─────────
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div style="max-width:900px;margin:2rem auto;padding:0 1rem;background:#fee2e2;border:1px solid #fca5a5;border-radius:.5rem;padding:1rem;color:#b91c1c;">
+            @Model.ErrorMessage
+        </div>
+    }
+    else
+    {
+        // Hidden form: Proceed posts to ChooseAction exactly as ChooseAction.cshtml does
+        <form id="frmViewer" method="post" action="@Url.Action("ChooseAction", "Home")" style="display:none">
+            <input type="hidden" name="SelectedUrl"      value="@Model.ModelUrl" />
+            <input type="hidden" name="FileExtension"    value="@Model.FileExtension" />
+            <input type="hidden" name="EuropeanaId"      value="@Model.ZenodoRecordId" />
+            <input type="hidden" name="ZenodoRecordId"   value="@Model.ZenodoRecordId" />
+            <input type="hidden" name="SelectedAction"   value="viewer" />
+            <input type="hidden" id="hiddenViewerId"     name="SelectedViewerProviderId" value="" />
+        </form>
+
+        // Fonts (loaded here since _Layout has no @section Head)
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
+        <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+        <link rel="stylesheet" href="~/css/metadata.css" />
+
+        <div class="op-wrap">
+
+            <div class="op-topbar">
+                <div class="op-langswitch" role="group" aria-label="Language">
+                    <button id="langEn" type="button" onclick="setLang('en')">EN</button>
+                    <button id="langHr" type="button" onclick="setLang('hr')">HR</button>
+                </div>
+            </div>
+
+            <noscript><p class="op-noscript">This page needs JavaScript to display the object and switch language.</p></noscript>
+
+            <section class="op-hero">
+                <div class="op-stage">
+                    <span class="op-badge" id="badge"></span>
+                    <img class="op-img" id="heroImg" src="" alt="" />
+                </div>
+                <div class="op-info">
+                    <div class="op-eyebrow" id="eyebrow"></div>
+                    <h1 class="op-title" id="title"></h1>
+                    <div class="op-inv" id="invLine"></div>
+                    <p class="op-lead" id="lead"></p>
+                    <dl class="op-facts" id="facts"></dl>
+
+                    <div class="op-viewer">
+                        <span class="op-viewer-label" id="viewerLabel"></span>
+                        <div class="op-viewer-row">
+                            <select class="op-select" id="viewerSelect" aria-label="3D viewer"></select>
+                            <button class="op-proceed" id="viewerGo" type="button" onclick="openViewer()">
+                                <span id="proceedTxt"></span>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="op-actions">
+                        <a class="op-btn" id="btnDownload" href="#" target="_blank" rel="noopener">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+                            <span id="btnDownloadTxt"></span>
+                        </a>
+                        <a class="op-btn" id="btnMuseum" href="#" target="_blank" rel="noopener"><span id="btnMuseumTxt"></span></a>
+                    </div>
+
+                    <div class="op-license">
+                        <span class="op-cc" id="ccBadges" aria-hidden="true"></span>
+                        <span><a id="ccLink" href="#" target="_blank" rel="noopener"></a> · <span id="rightsHolder"></span></span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="op-digi">
+                <h2 class="op-seclabel" id="digiTitle"></h2>
+                <dl class="op-digigrid" id="digiGrid"></dl>
+                <div class="op-flow" id="flow"></div>
+            </section>
+
+            <section class="op-refs" id="refsBlock" hidden="hidden">
+                <span class="op-refs-label" id="refsLabel"></span>
+                <p class="op-refs-text" id="refsText"></p>
+            </section>
+
+            <details class="op-details">
+                <summary>
+                    <span id="metaTitle"></span>
+                    <svg class="op-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </summary>
+                <table class="op-meta"><tbody id="metaBody"></tbody></table>
+            </details>
+
+            <footer class="op-foot" id="footerText"></footer>
+        </div>
+
+        <script>
+        (function () {
+        const META    = @Html.Raw(Model.MetaJson);
+        const VIEWERS = @Html.Raw(
+            System.Text.Json.JsonSerializer.Serialize(
+                Model.Viewers.Select(v => new { id = v.ProviderID, name = v.DisplayName }),
+                new System.Text.Json.JsonSerializerOptions {
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                }
+            )
+        );
+        const FIELDS  = @Html.Raw(Model.LandingFieldsJson);
+
+        const T = {
+          en:{ inventory:'Inventory', museum:'Museum', country:'Country', material:'Material', dimensions:'Dimensions',
+               findSite:'Find site', viewerLabel:'Open in 3D viewer', proceed:'Proceed', download:'Download 3D model (GLB)',
+               museumSite:'Museum website', digi:'3D digitisation', technique:'Technique', sourceType:'Source type',
+               format:'File format', author:'3D author', digitised:'Digitised', intendedUse:'Intended use',
+               polygons:'Polygons', vertices:'Vertices', points:'Points', gaussians:'Gaussians',
+               providedBy:'Provided by', processedBy:'processed by', aggregatedBy:'aggregated by', project:'project',
+               references:'Literature', allMeta:'All metadata', metaSub:'Dublin Core / Europeana EDM', fields:'fields',
+               footer:"Published on the XRculture platform. This work has received funding from the European Union under Grant Agreement No. 101174317. Views and opinions expressed are those of the author(s) only and do not necessarily reflect those of the European Union or HADEA." },
+          hr:{ inventory:'Inventarni broj', museum:'Muzej', country:'Država', material:'Materijal', dimensions:'Dimenzije',
+               findSite:'Nalazište', viewerLabel:'Otvori u 3D pregledniku', proceed:'Nastavi', download:'Preuzmi 3D model (GLB)',
+               museumSite:'Web stranica muzeja', digi:'3D digitalizacija', technique:'Tehnika', sourceType:'Vrsta izvora',
+               format:'Format datoteke', author:'Autor 3D modela', digitised:'Digitalizirano', intendedUse:'Namjena',
+               polygons:'Poligoni', vertices:'Vrhovi', points:'Točke', gaussians:'Gaussove točke',
+               providedBy:'Ustupio', processedBy:'obradio', aggregatedBy:'agregirao', project:'projekt',
+               references:'Literatura', allMeta:'Svi metapodaci', metaSub:'Dublin Core / Europeana EDM', fields:'polja',
+               footer:"Objavljeno na platformi XRculture. Ovaj rad financiran je sredstvima Europske unije u okviru Ugovora o dodjeli bespovratnih sredstava br. 101174317. Izneseni stavovi i mišljenja pripadaju isključivo autoru(ima) i ne odražavaju nužno stavove Europske unije ni HADEA-e." }
+        };
+
+        let lang = 'en';
+        const map = {}; META.forEach(r => map[r.k] = r);
+        const val = (r,l) => !r ? '' : (r.v !== undefined ? r.v : (r[l] || r.en || r.hr || ''));
+        const g = (k,l) => val(map[k], l);
+        const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+        const glb       = g(FIELDS.model,'en');
+        const download  = g(FIELDS.download,'en') || glb;
+        const preview   = g(FIELDS.preview,'en');
+        const isShownAt = g(FIELDS.isShownAt,'en');
+        const pid       = g(FIELDS.pid,'en') || g(FIELDS.pidFallback,'en');
+        const recordId  = (String(glb).match(/records\/(\d+)/) || [,''])[1];
+
+        const afterSlash = s => (s && String(s).includes('/')) ? String(s).split('/').pop() : s;
+        function stripCopyright(s){ return String(s||'').replace(/^\s*(Copyright|Autorska prava)\s*/i,'').replace(/^©\s*/,'').trim(); }
+        function ccInfo(url){
+          try{ const u = new URL(url);
+            if(!/(^|\.)creativecommons\.org$/.test(u.host)) return null;
+            let m = u.pathname.match(/\/licenses\/([a-z-]+)\/([0-9.]+)/);
+            if(m) return { toks:['CC'].concat(m[1].split('-').map(t=>t.toUpperCase())), label:'CC '+m[1].toUpperCase()+' '+m[2] };
+            m = u.pathname.match(/\/publicdomain\/zero\/([0-9.]+)/);
+            if(m) return { toks:['CC','0'], label:'CC0 '+m[1] };
+          }catch(e){} return null;
+        }
+        const fact  = (dt,dd) => dd ? '<div class="op-fact"><dt>'+esc(dt)+'</dt><dd>'+esc(dd)+'</dd></div>' : '';
+        const dcell = (dt,dd) => dd ? '<div><dt>'+esc(dt)+'</dt><dd>'+esc(dd)+'</dd></div>' : '';
+
+        function render(){
+          const t = T[lang];
+          document.documentElement.lang = lang;
+          document.getElementById('langEn').classList.toggle('active', lang==='en');
+          document.getElementById('langHr').classList.toggle('active', lang==='hr');
+
+          const img = document.getElementById('heroImg');
+          img.src = preview; img.alt = g(FIELDS.title,lang) + ' ' + pid;
+
+          const tech = g(FIELDS.captureType,lang);
+          document.getElementById('badge').textContent = (g(FIELDS.type,'en') + (tech ? ' · ' + tech.toUpperCase() : '')).trim();
+
+          document.getElementById('eyebrow').innerHTML =
+            [g(FIELDS.objectType,lang), g(FIELDS.dating,lang), g(FIELDS.category,lang)]
+            .filter(Boolean).map(x => '<span class="op-tag">'+esc(x)+'</span>').join('');
+
+          document.getElementById('title').textContent = g(FIELDS.title,lang);
+          const coll = g(FIELDS.collection,lang);
+          document.getElementById('invLine').innerHTML =
+            '<b>'+esc(t.inventory)+'</b> '+esc(pid) + (coll ? ' · '+esc(coll) : '');
+          document.getElementById('lead').textContent = g(FIELDS.description,lang);
+
+          document.getElementById('facts').innerHTML =
+            fact(t.museum,     g(FIELDS.dataProvider,lang)) +
+            fact(t.country,    g(FIELDS.country,lang)) +
+            fact(t.material,   g(FIELDS.material,lang)) +
+            fact(t.dimensions, g(FIELDS.dimensions,lang)) +
+            fact(t.findSite,   g(FIELDS.findSite,lang));
+
+          document.getElementById('viewerLabel').textContent = t.viewerLabel;
+          document.getElementById('proceedTxt').textContent = t.proceed;
+          const sel = document.getElementById('viewerSelect');
+          if(!sel.dataset.filled){ sel.innerHTML = VIEWERS.map(v=>'<option value="'+esc(v.id)+'">'+esc(v.name)+'</option>').join(''); sel.dataset.filled='1'; }
+
+          const dl = document.getElementById('btnDownload'); dl.href = download || '#';
+          document.getElementById('btnDownloadTxt').textContent = t.download;
+          const msUrl = g(FIELDS.institutionWebsite,'en');
+          const ms = document.getElementById('btnMuseum'); ms.href = msUrl || '#'; ms.hidden = !msUrl;
+          document.getElementById('btnMuseumTxt').textContent = t.museumSite;
+
+          const cc = ccInfo(g(FIELDS.rights,'en'));
+          document.getElementById('ccBadges').innerHTML = cc ? cc.toks.map(x=>'<span>'+esc(x)+'</span>').join('') : '';
+          const lk = document.getElementById('ccLink');
+          lk.textContent = cc ? cc.label : g(FIELDS.rights,'en'); lk.href = g(FIELDS.rights,'en') || '#';
+          const rh = stripCopyright(g(FIELDS.copyright,lang));
+          document.getElementById('rightsHolder').textContent = rh ? '© '+rh : '';
+
+          document.getElementById('digiTitle').textContent = t.digi;
+          document.getElementById('digiGrid').innerHTML =
+            dcell(t.technique,   g(FIELDS.captureType,lang)) +
+            dcell(t.sourceType,  g(FIELDS.digitalSourceType,'en')) +
+            dcell(t.format,      afterSlash(g(FIELDS.fileFormat,'en'))) +
+            dcell(t.author,      g(FIELDS.author3D,'en')) +
+            dcell(t.digitised,   g(FIELDS.digitised,'en')) +
+            dcell(t.intendedUse, g(FIELDS.intendedUse,'en')) +
+            dcell(t.polygons,    g(FIELDS.polygonCount,'en')) +
+            dcell(t.vertices,    g(FIELDS.vertexCount,'en')) +
+            dcell(t.points,      g(FIELDS.pointCount,'en')) +
+            dcell(t.gaussians,   g(FIELDS.gaussianCount,'en'));
+
+          document.getElementById('flow').innerHTML =
+            esc(t.providedBy)+' <b>'+esc(g(FIELDS.dataProvider,lang))+'</b>'+
+            '<span class="sep">→</span>'+esc(t.processedBy)+' <b>'+esc(g(FIELDS.intermediateProvider,'en'))+'</b>'+
+            '<span class="sep">→</span>'+esc(t.aggregatedBy)+' <b>'+esc(g(FIELDS.provider,'en'))+'</b>'+
+            '<span class="sep">·</span>'+esc(t.project)+' <b>'+esc(g(FIELDS.project,'en'))+'</b>';
+
+          const refs = g(FIELDS.references,lang);
+          const rb = document.getElementById('refsBlock');
+          if(refs){ rb.hidden = false; document.getElementById('refsLabel').textContent = t.references; document.getElementById('refsText').textContent = refs; }
+          else { rb.hidden = true; }
+
+          document.getElementById('metaTitle').innerHTML =
+            esc(t.allMeta)+' <span class="sub">'+esc(t.metaSub)+' — '+META.length+' '+esc(t.fields)+'</span>';
+          document.getElementById('metaBody').innerHTML = META.map(r=>{
+            const v = val(r, lang);
+            if(!v) return '';
+            const cellVal = /^https?:\/\//.test(v) ? '<a href="'+esc(v)+'" target="_blank" rel="noopener">'+esc(v)+'</a>' : esc(v);
+            return '<tr><td>'+esc(r.k)+'</td><td>'+cellVal+'</td></tr>';
+          }).join('');
+
+          document.getElementById('footerText').textContent = t.footer;
+        }
+
+        window.setLang = function(l){ lang = l; render(); };
+
+        window.openViewer = function(){
+          const id = document.getElementById('viewerSelect').value;
+          if(!id) return;
+          document.getElementById('hiddenViewerId').value = id;
+          document.getElementById('frmViewer').submit();
+        };
+
+        render();
+        })();
+        </script>
+    }
+}
