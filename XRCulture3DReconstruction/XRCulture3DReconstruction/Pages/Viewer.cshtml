@@ -13,6 +13,27 @@
 </form>
 
 <script>
+    function updateBrowserUrlParams(data) {
+        if (!data || typeof data !== 'object') {
+            return;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+
+        for (const [key, value] of Object.entries(data)) {
+            if (value === null || value === undefined) {
+                params.delete(key);
+                continue;
+            }
+
+            params.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+        }
+
+        const query = params.toString();
+        const newUrl = `${window.location.pathname}${query ? '?' + query : ''}${window.location.hash}`;
+        window.history.replaceState(window.history.state, '', newUrl);
+    }
+
     async function saveModelView(data) {
         try {
             // Requires @Html.AntiForgeryToken()
@@ -21,6 +42,9 @@
                 console.error('Anti-forgery token not found.');
                 return;
             }
+
+            // Keep the browser URL in sync with the current view
+            updateBrowserUrlParams(data);
 
             const response = await fetch('/Library?handler=SaveModelView', {
                 method: 'POST',
