@@ -245,6 +245,35 @@ namespace XRCulture3DReconstruction.Workflows
             }
 
             {
+                // Convert the openMVG scene to JSON so Python can read the camera poses
+                var exePath = Configuration[$"{toolPaths}:OpenMVG"] + (isLinuxPlatform ? "/openMVG_main_ConvertSfM_DataFormat" : @"\openMVG_main_ConvertSfM_DataFormat.exe");
+                var args = $"-i \"{inputDir}{sep}reconstruction{sep}sfm_data.bin\" -o \"{inputDir}{sep}reconstruction{sep}sfm_data.json\"";
+
+                var exitCode = ExecuteProcess(exePath, args);
+                if (exitCode != 0)
+                {
+                    await LogMessage($"Process failed with exit code {exitCode}.", true);
+                    throw new Exception($"openMVG_main_ConvertSfM_DataFormat failed with exit code {exitCode}.");
+                }
+            }
+
+            await RunPython(toolPaths, "segment_images.py",
+                $"--images \"{inputDir}{sep}undistored\" --output \"{inputDir}{sep}labels\"",
+                "Semantic segmentation", stopWatch);
+
+            var meshPly = quality.Equals("HIGH", StringComparison.OrdinalIgnoreCase) || quality.Equals("ULTRA", StringComparison.OrdinalIgnoreCase)
+                ? "model_dense_mesh_refine.ply"
+                : "model_dense_mesh.ply";
+
+            await RunPython(toolPaths, "label_mesh.py",
+                $"--sfm \"{inputDir}{sep}reconstruction{sep}sfm_data.json\" " +
+                $"--mesh \"{inputDir}{sep}{meshPly}\" " +
+                $"--labels \"{inputDir}{sep}labels\" " +
+                $"--textured-obj \"{inputDir}{sep}obj{sep}model.obj\" " +
+                $"--output \"{inputDir}{sep}semantics\"",
+                "Labeling mesh", stopWatch);
+
+            {
                 await LogMessage("*** OBJ2BIN started...");
 
                 var exePath = Configuration[$"{toolPaths}:OBJ2BIN"] + (isLinuxPlatform ? "/obj2bin" : @"\obj2bin.exe");

@@ -93,6 +93,22 @@ namespace XRCulture3DReconstruction.Workflows
             return process.ExitCode;
         }
 
+        public async Task RunPython(string toolPaths, string script, string scriptArgs, string description, System.Diagnostics.Stopwatch stopWatch)
+        {
+            await LogMessage($"*** {description} started...");
+
+            var python = Configuration[$"{toolPaths}:Python"];
+            var scriptPath = Path.Combine(AppContext.BaseDirectory, "Scripts", script);
+            var exitCode = ExecuteProcess(python, $"\"{scriptPath}\" {scriptArgs}");
+            if (exitCode != 0)
+            {
+                await LogMessage($"Process failed with exit code {exitCode}.", true);
+                throw new Exception($"{description} failed with exit code {exitCode}.");
+            }
+
+            await LogMessage($"*** {description} completed successfully in {stopWatch.Elapsed:hh\\:mm\\:ss\\.fff}.");
+        }
+
         public async Task PreProcessData(string dataFolder)
         {
             var imagesDir = Path.Combine(dataFolder, "images");
