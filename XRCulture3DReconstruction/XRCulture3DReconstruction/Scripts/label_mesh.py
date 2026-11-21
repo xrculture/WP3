@@ -43,6 +43,7 @@ p.add_argument("--mesh", required=True)       # untextured PLY, e.g. model_dense
 p.add_argument("--labels", required=True)     # folder with <image>.png label maps + classes.json
 p.add_argument("--output", required=True)     # output folder
 p.add_argument("--textured-obj")              # optional: final textured OBJ to receive labels
+p.add_argument("--transform")                 # optional: 4x4 matrix (JSON) from the MeshLab alignment; default <textured-obj>.transform.json
 p.add_argument("--min-cos", type=float, default=0.2)   # ignore views more grazing than this (cosine of angle)
 p.add_argument("--min-faces", type=int, default=50)    # ignore instances smaller than this (noise)
 a = p.parse_args()
@@ -161,9 +162,18 @@ for cls in np.unique(face_label):
 json.dump(instances, open(os.path.join(a.output, "instances.json"), "w"), indent=2)
 
 # Transfer labels to the textured OBJ, keeping texture coordinates and materials.
-# The OBJ is rewritten as text so that "vt", "vn" and "mtllib" lines stay unchanged;
-# only the faces are regrouped under one "g <class>" line per class and material.
+# The OBJ was aligned by MeshLab (principal axes + centering), so the PLY face centers
+# are first moved into the OBJ frame with the transform saved by the MeshLab script.
 if a.textured_obj:
+    tf_path = a.transform or (a.textured_obj + ".transform.json")
+    if os.path.exists(tf_path):
+        M = np.array(json.load(open(tf_path)), dtype=np.float64)
+        centers_obj = centers @ M[:3, :3].T + M[:3, 3]
+        print("applied transform", tf_path)
+    else:
+        centers_obj = centers
+        print("WARNING: no transform file found, assuming the OBJ is in the PLY frame:", tf_path)
+
     verts, head, faces, mat = [], [], [], None
     for line in open(a.textured_obj, encoding="utf-8"):
         if line.startswith("v "):
@@ -179,9 +189,13 @@ if a.textured_obj:
     verts = np.array(verts)
     cent = np.array([verts[[int(t.split("/")[0]) - 1 for t in l.split()[1:4]]].mean(axis=0) for l, _ in faces])
 
-    # The OBJ may have different faces than the PLY (e.g. after decimation),
-    # so each OBJ face takes the label of the nearest PLY face center
-    _, nn = cKDTree(centers).query(cent)
+    # Sanity check: both bounding boxes must be nearly identical
+    print("PLY bounds (transformed):", centers_obj.min(axis=0).round(3), centers_obj.max(axis=0).round(3))
+    print("OBJ bounds:              ", cent.min(axis=0).round(3), cent.max(axis=0).round(3))
+
+    # Each OBJ face takes the label of the nearest PLY face center
+    dist, nn = cKDTree(centers_obj).query(cent)
+    print("median / max distance to the nearest PLY face:", np.median(dist), dist.max())
     groups = {}
     for (l, m), c in zip(faces, face_label[nn]):
         groups.setdefault((int(c), m), []).append(l)
